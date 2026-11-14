@@ -32,6 +32,13 @@ GATT FTMS (0x1826, Cross Trainer Data 0x2ACE) para el reloj Amazfit Active 3.
 - Seguridad: la sonda FitShow solo envía consultas; los comandos de control solo a mano.
 - Evitar la palabra "focus" en textos.
 
+## Estado real (hito 1)
+- Módulos existentes: `:app`, `:core:protocol`, `:ble:ftms`. minSdk 33.
+- Aplazado al hito 2, cuando haga falta persistencia: Hilt, Room/DataStore, `:ble:fitshow`, `:data`.
+- Aplazado: ktlint y detekt (pendiente de versiones compatibles con Kotlin 2.2). CI ejecuta tests y assembleRelease.
+- Sin compilación local: Maven y Google están bloqueados en la sesión; cada cambio se valida en Actions
+  (`gh run list`, `gh run view <id> --log-failed`). Los secrets no se pueden escribir desde la sesión.
+
 ## Delegación a modelos de menor coste
 Subagentes en `.claude/agents/`. Regla: delegar siempre que la tarea encaje; el modelo
 principal se reserva para arquitectura, código BLE/GATT, concurrencia y diagnóstico de fallos.

@@ -19,4 +19,5 @@ Descarga la APK de la última [Release](../../releases) e instálala en el móvi
 
 ## Compilación
 GitHub Actions (`.github/workflows/build.yml`) ejecuta los tests y genera la APK firmada.
-Secrets necesarios: `KEYSTORE_BASE64`, `KEYSTORE_PASSWORD`, `KEY_ALIAS`, `KEY_PASSWORD`.
+Secrets necesarios: `KEYSTORE_BASE64` y `KEYSTORE_PASSWORD` (alias por defecto `fs2ftms`).
+Sin ellos la APK se firma con clave de depuración y no se publica Release.
