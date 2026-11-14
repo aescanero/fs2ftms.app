@@ -33,5 +33,13 @@ GATT FTMS (0x1826, Cross Trainer Data 0x2ACE) para el reloj Amazfit Active 3.
 - Evitar la palabra "focus" en textos.
 
 ## Delegación a modelos de menor coste
-Las tareas repetitivas se delegan a los subagentes de `.claude/agents/` (modelo haiku).
-El diseño, el código BLE y las decisiones de arquitectura se quedan en el modelo principal.
+Subagentes en `.claude/agents/`. Regla: delegar siempre que la tarea encaje; el modelo
+principal se reserva para arquitectura, código BLE/GATT, concurrencia y diagnóstico de fallos.
+
+| Nivel | Agentes | Uso |
+|---|---|---|
+| haiku | git-ops, ci-triage, lint-fix, deps-update, docs-sync, boilerplate, frame-fixtures, log-digest, release-notes | Tareas mecánicas con entrada y salida cerradas |
+| sonnet | test-writer, code-review, ui-scaffold, ref-research | Trabajo con criterio acotado |
+| principal | — | Diseño, BLE, decisiones y revisión final |
+
+Contexto técnico previo: `docs/hallazgos-previos.md`.
