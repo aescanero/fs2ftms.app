@@ -1,5 +1,6 @@
 package io.github.aescanero.fs2ftms.ui
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -37,6 +38,9 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.aescanero.fs2ftms.EmulatorSettings
 import io.github.aescanero.fs2ftms.MainViewModel
+import io.github.aescanero.fs2ftms.ble.central.DumpState
+import io.github.aescanero.fs2ftms.ble.central.ScanEntry
+import io.github.aescanero.fs2ftms.ble.central.ScanState
 import io.github.aescanero.fs2ftms.ble.ftms.TelemetryEvent
 import io.github.aescanero.fs2ftms.ble.ftms.TelemetrySnapshot
 import io.github.aescanero.fs2ftms.ble.ftms.TelemetryType
@@ -46,7 +50,7 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-private val tabs = listOf("Emulador", "Telemetría", "Privacidad")
+private val tabs = listOf("Emulador", "Escáner", "Telemetría", "Privacidad")
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -55,7 +59,10 @@ fun AppScreen(
     hasPermissions: Boolean,
     onRequestPermissions: () -> Unit,
     onShare: () -> Unit,
+    onShareDump: () -> Unit,
 ) {
+    val scan by vm.scan.collectAsStateWithLifecycle()
+    val dump by vm.dump.collectAsStateWithLifecycle()
     val telemetry by vm.telemetry.collectAsStateWithLifecycle()
     val settings by vm.settings.collectAsStateWithLifecycle()
     val sample by vm.lastSample.collectAsStateWithLifecycle()
@@ -82,7 +89,24 @@ fun AppScreen(
                     onPauseAdvertising = vm::setPauseAdvertising,
                     onCadence = vm::setCadence,
                 )
-                1 -> TelemetryTab(telemetry, onShare)
+                1 -> if (hasPermissions) {
+                    ScannerTab(
+                        scan = scan,
+                        dump = dump,
+                        onStartScan = vm::startScan,
+                        onStopScan = vm::stopScan,
+                        onInspect = vm::inspect,
+                        onCancelDump = vm::cancelDump,
+                        onClearDump = vm::clearDump,
+                        onShareDump = onShareDump,
+                    )
+                } else {
+                    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Text("Faltan los permisos de Bluetooth (dispositivos cercanos).")
+                        Button(onClick = onRequestPermissions) { Text("Conceder permisos") }
+                    }
+                }
+                2 -> TelemetryTab(telemetry, onShare)
                 else -> PrivacyTab()
             }
         }
@@ -251,6 +275,10 @@ private fun PrivacyTab() {
                 "no crea cuentas y no envía datos a ningún servidor.",
         )
         Text(
+            "El escáner busca dispositivos Bluetooth cercanos y, si lo pides, lee sus servicios " +
+                "para diagnóstico. No usa esos datos para obtener tu ubicación.",
+        )
+        Text(
             "Usa Bluetooth para publicar un servicio Fitness Machine (FTMS) al que se conecta el reloj. " +
                 "Registra en memoria los eventos de esa conexión (direcciones Bluetooth, lecturas, " +
                 "suscripciones y escrituras) con fines de diagnóstico.",
@@ -258,6 +286,87 @@ private fun PrivacyTab() {
         Text(
             "Esos registros solo salen del dispositivo cuando pulsas «Exportar telemetría» y eliges " +
                 "con qué aplicación compartir el fichero. Se borran al cerrar la aplicación.",
+        )
+    }
+}
+
+@Composable
+private fun ScannerTab(
+    scan: ScanState,
+    dump: DumpState,
+    onStartScan: () -> Unit,
+    onStopScan: () -> Unit,
+    onInspect: (String) -> Unit,
+    onCancelDump: () -> Unit,
+    onClearDump: () -> Unit,
+    onShareDump: () -> Unit,
+) {
+    val result = dump.result
+    if (dump.running || result != null) {
+        Column(
+            Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Text(if (dump.running) "Volcando…" else "Volcado GATT", style = MaterialTheme.typography.titleMedium)
+            Text(dump.status)
+            if (dump.running) {
+                OutlinedButton(onClick = onCancelDump, modifier = Modifier.fillMaxWidth()) { Text("Cancelar") }
+            } else {
+                Button(onClick = onShareDump, modifier = Modifier.fillMaxWidth()) { Text("Exportar volcado (JSON)") }
+                OutlinedButton(onClick = onClearDump, modifier = Modifier.fillMaxWidth()) { Text("Volver al escáner") }
+            }
+            if (result != null) {
+                Text(
+                    result.toText(),
+                    style = MaterialTheme.typography.bodySmall,
+                    fontFamily = FontFamily.Monospace,
+                )
+            }
+        }
+        return
+    }
+    LazyColumn(Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
+        item {
+            Column(Modifier.padding(vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(
+                    "Busca la máquina y púlsala para volcar su anuncio y su árbol GATT. " +
+                        "Solo lee y escucha notificaciones; no envía comandos. " +
+                        "Cierra antes la app FitShow y desconecta el reloj de la máquina.",
+                    style = MaterialTheme.typography.bodySmall,
+                )
+                if (scan.scanning) {
+                    OutlinedButton(onClick = onStopScan, modifier = Modifier.fillMaxWidth()) {
+                        Text("Detener búsqueda (${scan.entries.size})")
+                    }
+                } else {
+                    Button(onClick = onStartScan, modifier = Modifier.fillMaxWidth()) { Text("Buscar dispositivos") }
+                }
+                scan.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+            }
+        }
+        items(scan.entries, key = { it.address }) { entry ->
+            ScanRow(entry, onInspect)
+            HorizontalDivider()
+        }
+    }
+}
+
+@Composable
+private fun ScanRow(entry: ScanEntry, onInspect: (String) -> Unit) {
+    Column(Modifier.fillMaxWidth().clickable { onInspect(entry.address) }.padding(vertical = 10.dp)) {
+        val tags = buildList {
+            if (entry.hasFtms) add("FTMS")
+            if (entry.hasFitShow) add("FitShow")
+            if (!entry.connectable) add("no conectable")
+        }
+        Text(
+            (entry.name ?: "(sin nombre)") + if (tags.isEmpty()) "" else "  ·  " + tags.joinToString(" · "),
+            fontWeight = if (entry.hasFtms || entry.hasFitShow) FontWeight.Bold else FontWeight.Normal,
+        )
+        Text(
+            "${entry.address}  ${entry.rssi} dBm  ${entry.serviceUuids.joinToString(" ")}",
+            style = MaterialTheme.typography.labelSmall,
+            fontFamily = FontFamily.Monospace,
         )
     }
 }

@@ -36,5 +36,15 @@ object FtmsUuids {
         MODEL_NUMBER to "Model (2A24)",
     )
 
+    /** Forma corta (0x1826) para UUID de la base Bluetooth; completa en el resto. */
+    fun display(uuid: UUID): String {
+        val text = uuid.toString()
+        return if (text.startsWith("0000") && text.endsWith("-0000-1000-8000-00805f9b34fb")) {
+            "0x" + text.substring(4, 8).uppercase()
+        } else {
+            text
+        }
+    }
+
     fun nameOf(uuid: UUID): String = names[uuid] ?: uuid.toString()
 }

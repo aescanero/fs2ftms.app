@@ -22,12 +22,13 @@ import io.github.aescanero.fs2ftms.ui.AppScreen
 
 class MainActivity : ComponentActivity() {
     private val required = arrayOf(
+        Manifest.permission.BLUETOOTH_SCAN,
         Manifest.permission.BLUETOOTH_CONNECT,
         Manifest.permission.BLUETOOTH_ADVERTISE,
         Manifest.permission.POST_NOTIFICATIONS,
     )
 
-    private fun bluetoothGranted(): Boolean = required.take(2).all {
+    private fun bluetoothGranted(): Boolean = required.take(3).all {
         ContextCompat.checkSelfPermission(this, it) == PackageManager.PERMISSION_GRANTED
     }
 
@@ -47,6 +48,7 @@ class MainActivity : ComponentActivity() {
                     hasPermissions = granted,
                     onRequestPermissions = { launcher.launch(required) },
                     onShare = { startActivity(vm.exportIntent()) },
+                    onShareDump = { vm.exportDumpIntent()?.let { startActivity(it) } },
                 )
             }
         }

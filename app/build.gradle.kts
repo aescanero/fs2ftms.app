@@ -58,6 +58,7 @@ kotlin {
 
 dependencies {
     implementation(project(":ble:ftms"))
+    implementation(project(":ble:central"))
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.lifecycle.runtime.compose)

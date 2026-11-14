@@ -33,7 +33,10 @@ GATT FTMS (0x1826, Cross Trainer Data 0x2ACE) para el reloj Amazfit Active 3.
 - Evitar la palabra "focus" en textos.
 
 ## Estado real (hito 1)
-- Módulos existentes: `:app`, `:core:protocol`, `:ble:ftms`. minSdk 33.
+- Módulos existentes: `:app`, `:core:protocol`, `:ble:ftms`, `:ble:central` (escáner y volcado GATT de solo consulta). minSdk 33.
+- Resultado de las pruebas del hito 1: el Active 3 lista el emulador, conecta ~2,4 s sin leer ni suscribirse y
+  corta; tras 3 intentos da error (igual en móvil y tablet, sin emparejar). Plan: volcar la Toputure
+  (bicicleta, aceptada por el reloj) y replicar su anuncio y GATT en el emulador.
 - Aplazado al hito 2, cuando haga falta persistencia: Hilt, Room/DataStore, `:ble:fitshow`, `:data`.
 - Aplazado: ktlint y detekt (pendiente de versiones compatibles con Kotlin 2.2). CI ejecuta tests y assembleRelease.
 - Sin compilación local: Maven y Google están bloqueados en la sesión; cada cambio se valida en Actions
