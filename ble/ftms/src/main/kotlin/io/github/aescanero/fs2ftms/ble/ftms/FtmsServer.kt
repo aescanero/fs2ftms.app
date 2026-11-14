@@ -28,6 +28,8 @@ import java.util.UUID
 data class FtmsServerConfig(
     val machineType: MachineType = MachineType.CROSS_TRAINER,
     val batteryService: Boolean = false,
+    /** Imita a una máquina real de conexión única: deja de anunciarse mientras hay un cliente. */
+    val pauseAdvertisingWhileConnected: Boolean = false,
 )
 
 /**
@@ -97,7 +99,8 @@ class FtmsServer(
         telemetry.event(
             TelemetryType.SERVER,
             null,
-            "Servidor abierto: ${config.machineType.label}, batería simulada=${config.batteryService}",
+            "Servidor abierto: ${config.machineType.label}, batería simulada=${config.batteryService}, " +
+                "pausa de anuncio al conectar=${config.pauseAdvertisingWhileConnected}",
         )
         val already = runCatching { manager.getConnectedDevices(BluetoothProfile.GATT) }.getOrNull().orEmpty()
         telemetry.event(
@@ -257,6 +260,13 @@ class FtmsServer(
         leAdvertiser.startAdvertising(settings, data, scanResponse, advertiseCallback)
     }
 
+    private fun pauseAdvertising() {
+        val leAdvertiser = synchronized(lock) { advertiser } ?: return
+        runCatching { leAdvertiser.stopAdvertising(advertiseCallback) }
+        telemetry.update { it.copy(advertising = false) }
+        telemetry.event(TelemetryType.ADVERTISING, null, "Anuncio en pausa mientras hay conexión")
+    }
+
     private val advertiseCallback = object : AdvertiseCallback() {
         override fun onStartSuccess(settingsInEffect: AdvertiseSettings) {
             telemetry.update { it.copy(advertising = true) }
@@ -374,6 +384,7 @@ class FtmsServer(
                     it.copy(connectedDevices = it.connectedDevices + name, connections = it.connections + 1)
                 }
                 telemetry.event(TelemetryType.CONNECTION, name, "Conectado (estado $status) ${bond(device)}")
+                if (config.pauseAdvertisingWhileConnected) pauseAdvertising()
             } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
                 val duration = synchronized(lock) {
                     devices.remove(device.address)
@@ -392,8 +403,10 @@ class FtmsServer(
                 telemetry.event(
                     TelemetryType.CONNECTION,
                     name,
-                    "Desconectado (estado $status, duración ${duration?.div(1000) ?: "?"} s)",
+                    "Desconectado (estado $status, duración ${duration ?: "?"} ms)",
                 )
+                val idle = synchronized(lock) { devices.isEmpty() && server != null }
+                if (config.pauseAdvertisingWhileConnected && idle) startAdvertising(includeName = advertisingWithName)
             }
         }
 

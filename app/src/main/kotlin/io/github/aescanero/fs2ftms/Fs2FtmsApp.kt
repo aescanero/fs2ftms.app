@@ -9,6 +9,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 data class EmulatorSettings(
     val machineType: MachineType = MachineType.CROSS_TRAINER,
     val batteryService: Boolean = false,
+    val pauseAdvertisingWhileConnected: Boolean = false,
     val cadencePerMinute: Int = 110,
 )
 

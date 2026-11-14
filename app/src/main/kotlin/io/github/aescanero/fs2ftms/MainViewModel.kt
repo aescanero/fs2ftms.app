@@ -34,6 +34,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun setBatteryService(enabled: Boolean) = container.settings.update { it.copy(batteryService = enabled) }
 
+    fun setPauseAdvertising(enabled: Boolean) =
+        container.settings.update { it.copy(pauseAdvertisingWhileConnected = enabled) }
+
     fun setCadence(cadence: Int) = container.settings.update { it.copy(cadencePerMinute = cadence) }
 
     /** Escribe la telemetría en un fichero JSON y devuelve el intent para compartirlo. */
@@ -47,6 +50,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 "androidSdk" to Build.VERSION.SDK_INT,
                 "machineType" to current.machineType.name,
                 "batteryService" to current.batteryService,
+                "pauseAdvertisingWhileConnected" to current.pauseAdvertisingWhileConnected,
                 "exportedAtMs" to System.currentTimeMillis(),
             ),
         )

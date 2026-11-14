@@ -79,6 +79,7 @@ fun AppScreen(
                     onStop = vm::stop,
                     onMachineType = vm::setMachineType,
                     onBattery = vm::setBatteryService,
+                    onPauseAdvertising = vm::setPauseAdvertising,
                     onCadence = vm::setCadence,
                 )
                 1 -> TelemetryTab(telemetry, onShare)
@@ -99,6 +100,7 @@ private fun EmulatorTab(
     onStop: () -> Unit,
     onMachineType: (MachineType) -> Unit,
     onBattery: (Boolean) -> Unit,
+    onPauseAdvertising: (Boolean) -> Unit,
     onCadence: (Int) -> Unit,
 ) {
     Column(
@@ -147,6 +149,14 @@ private fun EmulatorTab(
                         checked = settings.batteryService,
                         enabled = !telemetry.running,
                         onCheckedChange = onBattery,
+                    )
+                }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("Pausar anuncio mientras hay conexión", Modifier.weight(1f))
+                    Switch(
+                        checked = settings.pauseAdvertisingWhileConnected,
+                        enabled = !telemetry.running,
+                        onCheckedChange = onPauseAdvertising,
                     )
                 }
             }

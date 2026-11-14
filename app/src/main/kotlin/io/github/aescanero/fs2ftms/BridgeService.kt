@@ -65,7 +65,11 @@ class BridgeService : Service() {
         val settings = container.settings.value
         val ftms = FtmsServer(
             applicationContext,
-            FtmsServerConfig(settings.machineType, settings.batteryService),
+            FtmsServerConfig(
+                settings.machineType,
+                settings.batteryService,
+                settings.pauseAdvertisingWhileConnected,
+            ),
             telemetry,
         )
         if (!ftms.start()) {
