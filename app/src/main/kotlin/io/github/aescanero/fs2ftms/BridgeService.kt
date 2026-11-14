@@ -12,10 +12,14 @@ import android.os.IBinder
 import androidx.core.app.NotificationCompat
 import androidx.core.app.ServiceCompat
 import androidx.core.content.ContextCompat
+import io.github.aescanero.fs2ftms.ble.central.FtmsSourceClient
 import io.github.aescanero.fs2ftms.ble.ftms.FtmsServer
 import io.github.aescanero.fs2ftms.ble.ftms.FtmsServerConfig
 import io.github.aescanero.fs2ftms.ble.ftms.TelemetryType
+import io.github.aescanero.fs2ftms.protocol.MachineType
+import io.github.aescanero.fs2ftms.protocol.WorkoutSample
 import io.github.aescanero.fs2ftms.protocol.WorkoutSimulator
+import io.github.aescanero.fs2ftms.protocol.toHex
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -30,6 +34,7 @@ class BridgeService : Service() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private var server: FtmsServer? = null
     private var job: Job? = null
+    private var source: FtmsSourceClient? = null
 
     private val container: AppContainer
         get() = (application as Fs2FtmsApp).container
@@ -63,10 +68,13 @@ class BridgeService : Service() {
         }
         telemetry.newSession()
         val settings = container.settings.value
+        val sourceAddress = settings.sourceAddress
+        val bridge = settings.useBridge && sourceAddress != null
         val ftms = FtmsServer(
             applicationContext,
             FtmsServerConfig(
-                settings.machineType,
+                // El reloj solo acepta bicicleta: en modo puente la elíptica se presenta así.
+                if (bridge) MachineType.INDOOR_BIKE else settings.machineType,
                 settings.batteryService,
                 settings.pauseAdvertisingWhileConnected,
             ),
@@ -79,6 +87,34 @@ class BridgeService : Service() {
             return
         }
         server = ftms
+        if (bridge && sourceAddress != null) {
+            val name = settings.sourceName ?: sourceAddress
+            telemetry.event(TelemetryType.SOURCE, name, "Modo puente: origen $sourceAddress")
+            val client = FtmsSourceClient(
+                applicationContext,
+                scope,
+                sourceAddress,
+                object : FtmsSourceClient.Listener {
+                    override fun onState(text: String, connected: Boolean) {
+                        telemetry.update { it.copy(sourceConnected = connected) }
+                        telemetry.event(TelemetryType.SOURCE, name, text)
+                    }
+
+                    override fun onSample(sample: WorkoutSample) {
+                        container.lastSample.value = sample
+                        telemetry.update { it.copy(sourceSamples = it.sourceSamples + 1) }
+                        ftms.publish(sample)
+                    }
+
+                    override fun onMachineStatus(value: ByteArray) {
+                        telemetry.event(TelemetryType.SOURCE, name, "Machine Status: ${value.toHex()}")
+                    }
+                },
+            )
+            source = client
+            client.start()
+            return
+        }
         val simulator = WorkoutSimulator()
         job = scope.launch {
             while (isActive) {
@@ -93,6 +129,8 @@ class BridgeService : Service() {
     private fun shutdown() {
         job?.cancel()
         job = null
+        source?.stop()
+        source = null
         server?.stop()
         server = null
         container.lastSample.value = null

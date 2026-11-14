@@ -37,6 +37,12 @@ GATT FTMS (0x1826, Cross Trainer Data 0x2ACE) para el reloj Amazfit Active 3.
 - Resultado de las pruebas del hito 1: el Active 3 lista el emulador, conecta ~2,4 s sin leer ni suscribirse y
   corta; tras 3 intentos da error (igual en móvil y tablet, sin emparejar). Plan: volcar la Toputure
   (bicicleta, aceptada por el reloj) y replicar su anuncio y GATT en el emulador.
+- Hallazgo clave (14-11-2026): la Merach MRK-E27 SÍ publica FTMS válido (0x2ACE a ~1,25 Hz, sin pedir
+  control, partido en 2 paquetes por MTU 23; incluye resistencia). El reloj (Zepp OS 6) no admite elípticas:
+  solo acepta el perfil Indoor Bike, sin leer Feature ni negociar MTU (máx. 20 bytes por notificación).
+- El puente actual es FTMS→FTMS: `FtmsSourceClient` (:ble:central) lee 0x2ACE de la Merach y `FtmsServer`
+  lo republica como Indoor Bike Data (0x2AD2). El protocolo FitShow ya no es necesario para el puente;
+  queda como opción de diagnóstico. Detalle de tramas en `docs/hallazgos-previos.md`.
 - Aplazado al hito 2, cuando haga falta persistencia: Hilt, Room/DataStore, `:ble:fitshow`, `:data`.
 - Aplazado: ktlint y detekt (pendiente de versiones compatibles con Kotlin 2.2). CI ejecuta tests y assembleRelease.
 - Sin compilación local: Maven y Google están bloqueados en la sesión; cada cambio se valida en Actions

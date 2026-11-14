@@ -31,3 +31,17 @@
 
 ## Sin confirmar
 - Si Zepp acepta un FTMS virtual emitido por el móvil (la prueba con QZ no consta como hecha).
+
+## Volcado real de la Merach MRK-E27 (14-11-2026)
+- Módulo ThinkFIT (servicio 0xF8C0: marca "ThinkFIT", tipo "CRTR", producto "MRK-E27"), MTU fijo 23.
+- Anuncio: service data 0x1826 = `01 02 00` (Cross Trainer disponible). Igual que nuestro emulador de elíptica.
+- FTMS completo: 2ACC = `C7 52 00 00 04 00 00 00`; rangos 2AD4–2AD8; resistencia 1,0–16,0 paso 1,0 (2AD6 = `0A 00 A0 00 0A 00`).
+- 0x2ACE emite sin escribir en el Control Point, en dos paquetes:
+  - `9F 00 00` + vel. media (u16, 0,01 km/h) + distancia (u24, m) + pasos/min y media (u16×2) + zancadas (u16, 0,1) + resistencia (s16, 0,1).
+  - `00 2F 00` + velocidad (u16) + potencia y media (s16×2) + energía (u16+u16+u8) + pulso (u8) + tiempo (u16).
+- 2ADA: `04` al empezar a moverse; `07 xx xx` al cambiar la resistencia a mano.
+- FitShow (FFF1) también emite sin sondeo, a 1 Hz:
+  - `02 42 02` + velocidad (u16) + resistencia (u8) + cadencia (u16) + 00 + potencia×10 (u16) + … + XOR + `03`.
+  - `02 43 01` + tiempo (u16) + distancia (u16) + energía×10 (u16) + contador (u16) + XOR + `03`.
+- Otros servicios: `59554c55-…` "MRK-HR" (entrada de pulso) y OTA Telink (`00010203-…1912`): no tocar.
+- El Active 3 se suscribe solo a 0x2AD2 cuando el servidor se anuncia como bicicleta; rechaza Cross Trainer.

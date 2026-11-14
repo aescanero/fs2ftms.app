@@ -7,7 +7,7 @@ import kotlinx.coroutines.flow.update
 import org.json.JSONArray
 import org.json.JSONObject
 
-enum class TelemetryType { SERVER, ADVERTISING, CONNECTION, MTU, PHY, READ, SUBSCRIBE, CONTROL_POINT, NOTIFY, ERROR }
+enum class TelemetryType { SERVER, ADVERTISING, CONNECTION, MTU, PHY, READ, SUBSCRIBE, CONTROL_POINT, NOTIFY, SOURCE, ERROR }
 
 data class TelemetryEvent(
     val timestampMs: Long,
@@ -33,6 +33,8 @@ data class TelemetrySnapshot(
     val notificationsConfirmed: Long = 0,
     val notificationsFailed: Long = 0,
     val notificationsDropped: Long = 0,
+    val sourceConnected: Boolean = false,
+    val sourceSamples: Long = 0,
     val events: List<TelemetryEvent> = emptyList(),
 )
 
@@ -79,6 +81,8 @@ class TelemetryRecorder(private val maxEvents: Int = 2000) {
         root.put("notificationsConfirmed", s.notificationsConfirmed)
         root.put("notificationsFailed", s.notificationsFailed)
         root.put("notificationsDropped", s.notificationsDropped)
+        root.put("sourceConnected", s.sourceConnected)
+        root.put("sourceSamples", s.sourceSamples)
         val events = JSONArray()
         s.events.forEach { e ->
             events.put(

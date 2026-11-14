@@ -43,13 +43,18 @@ object FtmsCodec {
 
     /** Indoor Bike Data (0x2AD2): flags de 16 bits. */
     fun indoorBikeData(s: WorkoutSample): ByteArray {
-        // bit2 cadencia, bit4 distancia, bit6 potencia, bit8 energía, bit11 tiempo
-        val flags = (1 shl 2) or (1 shl 4) or (1 shl 6) or (1 shl 8) or (1 shl 11)
-        return Writer()
+        // bit2 cadencia, bit4 distancia, bit5 resistencia (opcional), bit6 potencia, bit8 energía,
+        // bit11 tiempo. Máximo 20 bytes: el reloj no negocia MTU y solo caben 20 por notificación.
+        val resistance = s.resistanceLevel
+        var flags = (1 shl 2) or (1 shl 4) or (1 shl 6) or (1 shl 8) or (1 shl 11)
+        if (resistance != null) flags = flags or (1 shl 5)
+        val writer = Writer()
             .u16(flags)
             .u16((s.speedKmh * 100).roundToInt().coerceIn(0, 0xFFFF))
             .u16((s.cadencePerMinute * 2).coerceIn(0, 0xFFFF))
             .u24(s.distanceMeters.coerceIn(0, 0xFFFFFF))
+        if (resistance != null) writer.u16(resistance.roundToInt().coerceIn(-32768, 32767))
+        return writer
             .u16(s.powerWatts.coerceIn(-32768, 32767))
             .u16(s.energyKcal.coerceIn(0, 0xFFFF)).u16(0xFFFF).u8(0xFF)
             .u16(s.elapsedSeconds.coerceIn(0, 0xFFFF))
@@ -66,7 +71,7 @@ object FtmsCodec {
         val common = (1L shl 2) or (1L shl 9) or (1L shl 12) or (1L shl 14)
         val machine = when (type) {
             MachineType.CROSS_TRAINER -> common or (1L shl 6) or (1L shl 8)
-            MachineType.INDOOR_BIKE -> common or (1L shl 1)
+            MachineType.INDOOR_BIKE -> common or (1L shl 1) or (1L shl 7)
         }
         return Writer().u32(machine).u32(0L).bytes()
     }

@@ -51,7 +51,7 @@ class FtmsCodecTest {
     @Test
     fun featureDeclaresOnlySentMetrics() {
         assertArrayEquals(bytes(0x44, 0x53, 0, 0, 0, 0, 0, 0), FtmsCodec.feature(MachineType.CROSS_TRAINER))
-        assertArrayEquals(bytes(0x06, 0x52, 0, 0, 0, 0, 0, 0), FtmsCodec.feature(MachineType.INDOOR_BIKE))
+        assertArrayEquals(bytes(0x86, 0x52, 0, 0, 0, 0, 0, 0), FtmsCodec.feature(MachineType.INDOOR_BIKE))
     }
 
     @Test

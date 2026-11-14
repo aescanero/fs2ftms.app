@@ -41,6 +41,17 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun setPauseAdvertising(enabled: Boolean) =
         container.settings.update { it.copy(pauseAdvertisingWhileConnected = enabled) }
 
+    fun setUseBridge(enabled: Boolean) = container.settings.update { it.copy(useBridge = enabled) }
+
+    /** Guarda como origen del puente la máquina del último volcado. */
+    fun useDumpAsSource() {
+        val result = container.inspector.dump.value.result ?: return
+        container.settings.update {
+            it.copy(sourceAddress = result.address, sourceName = result.scan?.name, useBridge = true)
+        }
+        container.inspector.clearDump()
+    }
+
     fun setCadence(cadence: Int) = container.settings.update { it.copy(cadencePerMinute = cadence) }
 
     fun startScan() = container.inspector.startScan()
@@ -91,6 +102,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 "androidSdk" to Build.VERSION.SDK_INT,
                 "machineType" to current.machineType.name,
                 "batteryService" to current.batteryService,
+                "bridge" to current.useBridge,
+                "source" to current.sourceName,
                 "pauseAdvertisingWhileConnected" to current.pauseAdvertisingWhileConnected,
                 "exportedAtMs" to System.currentTimeMillis(),
             ),

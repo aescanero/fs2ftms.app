@@ -50,7 +50,7 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-private val tabs = listOf("Emulador", "Escáner", "Telemetría", "Privacidad")
+private val tabs = listOf("Puente", "Escáner", "Telemetría", "Privacidad")
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -88,6 +88,7 @@ fun AppScreen(
                     onBattery = vm::setBatteryService,
                     onPauseAdvertising = vm::setPauseAdvertising,
                     onCadence = vm::setCadence,
+                    onUseBridge = vm::setUseBridge,
                 )
                 1 -> if (hasPermissions) {
                     ScannerTab(
@@ -98,6 +99,10 @@ fun AppScreen(
                         onInspect = vm::inspect,
                         onCancelDump = vm::cancelDump,
                         onClearDump = vm::clearDump,
+                        onUseAsSource = {
+                            vm.useDumpAsSource()
+                            tab = 0
+                        },
                         onShareDump = onShareDump,
                     )
                 } else {
@@ -126,6 +131,7 @@ private fun EmulatorTab(
     onBattery: (Boolean) -> Unit,
     onPauseAdvertising: (Boolean) -> Unit,
     onCadence: (Int) -> Unit,
+    onUseBridge: (Boolean) -> Unit,
 ) {
     Column(
         Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
@@ -147,14 +153,53 @@ private fun EmulatorTab(
             Text("Faltan los permisos de Bluetooth (dispositivos cercanos).")
             Button(onClick = onRequestPermissions) { Text("Conceder permisos") }
         } else if (telemetry.running) {
-            OutlinedButton(onClick = onStop, modifier = Modifier.fillMaxWidth()) { Text("Detener emulador") }
+            OutlinedButton(onClick = onStop, modifier = Modifier.fillMaxWidth()) { Text("Detener") }
         } else {
-            Button(onClick = onStart, modifier = Modifier.fillMaxWidth()) { Text("Iniciar emulador") }
+            Button(onClick = onStart, modifier = Modifier.fillMaxWidth()) { Text("Iniciar") }
         }
 
         Card(Modifier.fillMaxWidth()) {
             Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("Perfil anunciado", fontWeight = FontWeight.Bold)
+                Text("Origen de los datos", fontWeight = FontWeight.Bold)
+                val sourceLabel = settings.sourceName ?: settings.sourceAddress
+                FilterChip(
+                    selected = settings.useBridge && sourceLabel != null,
+                    enabled = !telemetry.running && sourceLabel != null,
+                    onClick = { onUseBridge(true) },
+                    label = { Text(if (sourceLabel != null) "Máquina real: $sourceLabel" else "Máquina real (sin elegir)") },
+                )
+                FilterChip(
+                    selected = !settings.useBridge || sourceLabel == null,
+                    enabled = !telemetry.running,
+                    onClick = { onUseBridge(false) },
+                    label = { Text("Datos simulados") },
+                )
+                if (sourceLabel == null) {
+                    Text(
+                        "Para elegir la máquina: Escáner → púlsala → «Usar como origen del puente».",
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                } else if (settings.useBridge) {
+                    Text(
+                        "El reloj la verá como bicicleta. Cierra FitShow antes de iniciar.",
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                }
+                if (telemetry.running && settings.useBridge) {
+                    Text(
+                        if (telemetry.sourceConnected) {
+                            "Máquina conectada · ${telemetry.sourceSamples} muestras"
+                        } else {
+                            "Máquina sin conexión"
+                        },
+                    )
+                }
+            }
+        }
+
+        Card(Modifier.fillMaxWidth()) {
+            Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Perfil anunciado (solo datos simulados)", fontWeight = FontWeight.Bold)
                 Text(
                     "Se aplica al iniciar. Para cambiarlo, detén el emulador.",
                     style = MaterialTheme.typography.bodySmall,
@@ -188,14 +233,18 @@ private fun EmulatorTab(
 
         Card(Modifier.fillMaxWidth()) {
             Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text("Datos simulados", fontWeight = FontWeight.Bold)
-                Text("Cadencia: ${settings.cadencePerMinute} pasos/min")
-                Slider(
-                    value = settings.cadencePerMinute.toFloat(),
-                    onValueChange = { onCadence(it.toInt()) },
-                    valueRange = 0f..180f,
-                )
+                Text("Datos enviados al reloj", fontWeight = FontWeight.Bold)
+                if (!settings.useBridge || settings.sourceAddress == null) {
+                    Text("Cadencia simulada: ${settings.cadencePerMinute}/min")
+                    Slider(
+                        value = settings.cadencePerMinute.toFloat(),
+                        onValueChange = { onCadence(it.toInt()) },
+                        valueRange = 0f..180f,
+                    )
+                }
                 if (sample != null) {
+                    Text("Cadencia: ${sample.cadencePerMinute}/min")
+                    sample.resistanceLevel?.let { Text("Resistencia: ${"%.0f".format(it)}") }
                     Text("Tiempo: ${sample.elapsedSeconds} s")
                     Text("Velocidad: ${"%.2f".format(sample.speedKmh)} km/h")
                     Text("Distancia: ${sample.distanceMeters} m")
@@ -299,6 +348,7 @@ private fun ScannerTab(
     onInspect: (String) -> Unit,
     onCancelDump: () -> Unit,
     onClearDump: () -> Unit,
+    onUseAsSource: () -> Unit,
     onShareDump: () -> Unit,
 ) {
     val result = dump.result
@@ -312,7 +362,17 @@ private fun ScannerTab(
             if (dump.running) {
                 OutlinedButton(onClick = onCancelDump, modifier = Modifier.fillMaxWidth()) { Text("Cancelar") }
             } else {
-                Button(onClick = onShareDump, modifier = Modifier.fillMaxWidth()) { Text("Exportar volcado (JSON)") }
+                val usable = result?.services.orEmpty().any { service ->
+                    service.uuid == "0x1826" && service.characteristics.any { it.uuid == "0x2ACE" }
+                }
+                if (usable) {
+                    Button(onClick = onUseAsSource, modifier = Modifier.fillMaxWidth()) {
+                        Text("Usar como origen del puente")
+                    }
+                }
+                OutlinedButton(onClick = onShareDump, modifier = Modifier.fillMaxWidth()) {
+                    Text("Exportar volcado (JSON)")
+                }
                 OutlinedButton(onClick = onClearDump, modifier = Modifier.fillMaxWidth()) { Text("Volver al escáner") }
             }
             if (result != null) {

@@ -18,6 +18,9 @@ data class WorkoutSample(
     val strideCount: Double,
     val powerWatts: Int,
     val energyKcal: Int,
+    val averageSpeedKmh: Double? = null,
+    val resistanceLevel: Double? = null,
+    val averagePowerWatts: Int? = null,
 )
 
 /** Petición recibida en el Fitness Machine Control Point. */
