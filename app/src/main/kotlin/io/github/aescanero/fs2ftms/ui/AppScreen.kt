@@ -247,7 +247,7 @@ private fun PrivacyTab() {
         )
         Text(
             "Esos registros solo salen del dispositivo cuando pulsas «Exportar telemetría» y eliges " +
-                "con qué aplicación compartir el fichero. Se borran al iniciar una nueva sesión.",
+                "con qué aplicación compartir el fichero. Se borran al cerrar la aplicación.",
         )
     }
 }

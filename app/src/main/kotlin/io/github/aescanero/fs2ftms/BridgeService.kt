@@ -61,7 +61,7 @@ class BridgeService : Service() {
             stopSelf()
             return
         }
-        telemetry.reset()
+        telemetry.newSession()
         val settings = container.settings.value
         val ftms = FtmsServer(
             applicationContext,

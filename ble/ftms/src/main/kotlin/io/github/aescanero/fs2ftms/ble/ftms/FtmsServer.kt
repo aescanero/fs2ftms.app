@@ -99,6 +99,13 @@ class FtmsServer(
             null,
             "Servidor abierto: ${config.machineType.label}, batería simulada=${config.batteryService}",
         )
+        val already = runCatching { manager.getConnectedDevices(BluetoothProfile.GATT) }.getOrNull().orEmpty()
+        telemetry.event(
+            TelemetryType.SERVER,
+            null,
+            "Enlaces BLE ya activos al iniciar: " +
+                already.joinToString { "${label(it)} ${bond(it)}" }.ifEmpty { "ninguno" },
+        )
         addNextService()
         return true
     }
@@ -328,6 +335,12 @@ class FtmsServer(
         return if (name.isNullOrBlank()) device.address else "$name (${device.address})"
     }
 
+    private fun bond(device: BluetoothDevice): String = when (runCatching { device.bondState }.getOrNull()) {
+        BluetoothDevice.BOND_BONDED -> "[emparejado]"
+        BluetoothDevice.BOND_BONDING -> "[emparejando]"
+        else -> "[sin emparejar]"
+    }
+
     private fun isSubscribed(device: BluetoothDevice, uuid: UUID): Boolean =
         synchronized(lock) { subscriptions[device.address]?.contains(uuid) == true }
 
@@ -360,7 +373,7 @@ class FtmsServer(
                 telemetry.update {
                     it.copy(connectedDevices = it.connectedDevices + name, connections = it.connections + 1)
                 }
-                telemetry.event(TelemetryType.CONNECTION, name, "Conectado (estado $status)")
+                telemetry.event(TelemetryType.CONNECTION, name, "Conectado (estado $status) ${bond(device)}")
             } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
                 val duration = synchronized(lock) {
                     devices.remove(device.address)

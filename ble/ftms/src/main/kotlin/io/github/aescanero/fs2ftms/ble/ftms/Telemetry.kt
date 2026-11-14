@@ -44,6 +44,11 @@ class TelemetryRecorder(private val maxEvents: Int = 2000) {
         _state.value = TelemetrySnapshot()
     }
 
+    /** Reinicia contadores y conserva el registro de eventos de intentos anteriores. */
+    fun newSession() {
+        _state.update { TelemetrySnapshot(events = it.events) }
+    }
+
     fun update(transform: (TelemetrySnapshot) -> TelemetrySnapshot) {
         _state.update(transform)
     }
