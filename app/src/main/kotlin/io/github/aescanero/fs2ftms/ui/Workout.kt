@@ -35,6 +35,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -45,9 +46,13 @@ import io.github.aescanero.fs2ftms.RecorderState
 import io.github.aescanero.fs2ftms.protocol.DemoWorkout
 import io.github.aescanero.fs2ftms.protocol.WorkoutSample
 import kotlinx.coroutines.delay
+import kotlin.math.min
 
 private const val NO_VALUE = "—"
 private const val STALE_PULSE_SECONDS = 5
+private const val PRIMARY_MAX_SIZE = 144f
+private const val SECONDARY_MAX_SIZE = 88f
+private const val MIN_VALUE_SIZE = 24f
 
 /**
  * Pantalla de entreno pensada para leerse a un metro: sin desplazamiento, con el pulso, el tiempo
@@ -210,7 +215,7 @@ private fun PulseSlot(recorder: RecorderState, settings: DeviceSettings, staleSe
             HeartRateGauge(
                 bpm = recorder.heartRate,
                 maxHeartRate = maxHeartRate,
-                modifier = Modifier.sizeIn(maxWidth = 440.dp, maxHeight = 440.dp),
+                modifier = Modifier.sizeIn(maxWidth = 560.dp, maxHeight = 560.dp),
                 staleSeconds = staleSeconds,
             )
         } else {
@@ -233,22 +238,20 @@ private fun PulseSlot(recorder: RecorderState, settings: DeviceSettings, staleSe
 
 @Composable
 private fun Metrics(sample: WorkoutSample?, wide: Boolean, modifier: Modifier) {
-    val primary = if (wide) MaterialTheme.typography.displayLarge else MaterialTheme.typography.displayMedium
-    val secondary = if (wide) MaterialTheme.typography.displaySmall else MaterialTheme.typography.headlineMedium
     Column(modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(Modifier.weight(1.3f).fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             MetricTile(
                 "Tiempo",
                 sample?.let { formatDuration(it.elapsedSeconds) } ?: NO_VALUE,
                 null,
-                primary,
+                PRIMARY_MAX_SIZE,
                 Modifier.weight(1.4f).fillMaxHeight(),
             )
             MetricTile(
                 "Resistencia",
                 sample?.resistanceLevel?.let { "%.0f".format(it) } ?: NO_VALUE,
                 null,
-                primary,
+                PRIMARY_MAX_SIZE,
                 Modifier.weight(1f).fillMaxHeight(),
             )
         }
@@ -257,58 +260,85 @@ private fun Metrics(sample: WorkoutSample?, wide: Boolean, modifier: Modifier) {
                 "Cadencia",
                 sample?.cadencePerMinute?.toString() ?: NO_VALUE,
                 "/min",
-                secondary,
+                SECONDARY_MAX_SIZE,
                 Modifier.weight(1f).fillMaxHeight(),
             )
             MetricTile(
                 "Velocidad",
                 sample?.let { "%.1f".format(it.speedKmh) } ?: NO_VALUE,
                 "km/h",
-                secondary,
+                SECONDARY_MAX_SIZE,
                 Modifier.weight(1f).fillMaxHeight(),
             )
             MetricTile(
                 "Calorías",
                 sample?.energyKcal?.toString() ?: NO_VALUE,
                 "kcal",
-                secondary,
+                SECONDARY_MAX_SIZE,
                 Modifier.weight(1f).fillMaxHeight(),
             )
         }
-        Text(
-            listOf(
-                "Distancia " + (sample?.let { formatDistance(it.distanceMeters) } ?: NO_VALUE),
-                "Potencia " + (sample?.let { "${it.powerWatts} W" } ?: NO_VALUE),
-                "Zancadas " + (sample?.let { "%.0f".format(it.strideCount) } ?: NO_VALUE),
-            ).joinToString("   ·   "),
-            style = MaterialTheme.typography.titleMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = TextAlign.Center,
-            maxLines = 1,
-            modifier = Modifier.fillMaxWidth(),
-        )
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            CompactTile(
+                "Distancia",
+                sample?.let { formatDistance(it.distanceMeters) } ?: NO_VALUE,
+                wide,
+                Modifier.weight(1f),
+            )
+            CompactTile("Potencia", sample?.let { "${it.powerWatts} W" } ?: NO_VALUE, wide, Modifier.weight(1f))
+            CompactTile(
+                "Zancadas",
+                sample?.let { "%.0f".format(it.strideCount) } ?: NO_VALUE,
+                wide,
+                Modifier.weight(1f),
+            )
+        }
+    }
+}
+
+/** Tarjeta cuyo valor crece hasta llenar el hueco disponible, con un tope por nivel. */
+@Composable
+private fun MetricTile(label: String, value: String, unit: String?, maxSize: Float, modifier: Modifier) {
+    Card(modifier) {
+        Column(Modifier.fillMaxSize().padding(4.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(label, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            BoxWithConstraints(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
+                val byHeight = maxHeight.value / 1.2f
+                val byWidth = maxWidth.value / (value.length.coerceAtLeast(2) * 0.62f)
+                val sizeDp = min(byHeight, byWidth).coerceIn(MIN_VALUE_SIZE, maxSize)
+                val fontSize = with(LocalDensity.current) { sizeDp.dp.toSp() }
+                Text(
+                    value,
+                    fontSize = fontSize,
+                    lineHeight = fontSize * 1.1f,
+                    fontWeight = FontWeight.Bold,
+                    style = TextStyle(fontFeatureSettings = "tnum"),
+                    maxLines = 1,
+                    softWrap = false,
+                )
+            }
+            if (unit != null) {
+                Text(unit, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
     }
 }
 
 @Composable
-private fun MetricTile(label: String, value: String, unit: String?, valueStyle: TextStyle, modifier: Modifier) {
+private fun CompactTile(label: String, value: String, wide: Boolean, modifier: Modifier) {
     Card(modifier) {
         Column(
-            Modifier.fillMaxSize().padding(8.dp),
-            verticalArrangement = Arrangement.Center,
+            Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 6.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Text(label, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(label, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Text(
                 value,
-                style = valueStyle.copy(fontFeatureSettings = "tnum"),
+                style = if (wide) MaterialTheme.typography.headlineMedium else MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.SemiBold,
                 maxLines = 1,
                 softWrap = false,
             )
-            if (unit != null) {
-                Text(unit, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
         }
     }
 }

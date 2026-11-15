@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -115,7 +116,7 @@ fun AppScreen(
                         onDelete = { vm.deleteSession(current.session.id) },
                     )
                 } else {
-                    HistoryList(sessions) { vm.openSession(it) }
+                    HistoryList(sessions, onOpen = { vm.openSession(it) }, onGoToWorkout = { tab = 0 })
                 }
             }
             2 -> if (hasPermissions) {
@@ -156,14 +157,14 @@ fun AppScreen(
             val wide = maxWidth >= 600.dp && maxWidth > maxHeight
             if (wide) {
                 Row(Modifier.fillMaxSize()) {
-                    NavigationRail {
+                    NavigationRail(Modifier.width(96.dp)) {
                         tabs.forEachIndexed { index, title ->
                             NavigationRailItem(
                                 selected = tab == index,
                                 enabled = !locked || index == 0,
                                 onClick = { tab = index },
                                 icon = { Icon(tabIcons[index], contentDescription = null) },
-                                label = { Text(title) },
+                                label = { Text(title, maxLines = 1, softWrap = false) },
                             )
                         }
                     }
@@ -333,109 +334,6 @@ private fun ScanRow(entry: ScanEntry, onInspect: (String) -> Unit) {
     }
 }
 
-@Composable
-private fun SettingsTab(
-    settings: DeviceSettings,
-    versionName: String,
-    onDebug: (Boolean) -> Unit,
-    onDemo: (Boolean) -> Unit,
-    onCreateDemoSession: () -> Unit,
-    onAge: (Int?) -> Unit,
-    onMaxHeartRate: (Int?) -> Unit,
-) {
-    Column(
-        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        Text("Zonas de pulso", style = MaterialTheme.typography.titleMedium)
-        var ageText by rememberSaveable { mutableStateOf(settings.age?.toString().orEmpty()) }
-        var maxText by rememberSaveable { mutableStateOf(settings.measuredMaxHeartRate?.toString().orEmpty()) }
-        OutlinedTextField(
-            value = ageText,
-            onValueChange = { text ->
-                ageText = text.filter(Char::isDigit).take(3)
-                onAge(ageText.toIntOrNull())
-            },
-            label = { Text("Edad") },
-            singleLine = true,
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-            modifier = Modifier.fillMaxWidth(),
-        )
-        OutlinedTextField(
-            value = maxText,
-            onValueChange = { text ->
-                maxText = text.filter(Char::isDigit).take(3)
-                onMaxHeartRate(maxText.toIntOrNull())
-            },
-            label = { Text("FC máxima medida (opcional)") },
-            singleLine = true,
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-            modifier = Modifier.fillMaxWidth(),
-        )
-        val max = settings.maxHeartRate
-        if (max == null) {
-            Text(
-                "Sin estos datos no se calculan las zonas. Con la edad se estima la máxima como 220 − edad.",
-                style = MaterialTheme.typography.bodySmall,
-            )
-        } else {
-            val zones = HeartRateZones(max)
-            val origin = if (settings.measuredMaxHeartRate != null) "medida" else "estimada: 220 − edad"
-            Text("FC máxima: $max ppm ($origin)", style = MaterialTheme.typography.bodyMedium)
-            HeartRateZone.entries.forEach { zone ->
-                Text(
-                    "Z${zone.number} ${zone.label}: ${zones.lowerBound(zone)}–${zones.upperBound(zone)} ppm",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = zoneColor(zone),
-                )
-            }
-        }
-        HorizontalDivider()
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Column(Modifier.weight(1f)) {
-                Text("Modo depuración", fontWeight = FontWeight.Bold)
-                Text(
-                    "Muestra el volcado GATT completo, el registro de conexiones y sus exportaciones.",
-                    style = MaterialTheme.typography.bodySmall,
-                )
-            }
-            Switch(checked = settings.debug, onCheckedChange = onDebug)
-        }
-        if (settings.debug) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f)) {
-                    Text("Modo demostración", fontWeight = FontWeight.Bold)
-                    Text(
-                        "«Iniciar sesión» graba datos simulados de elíptica y pulso, sin conectar con ningún " +
-                            "dispositivo. Las sesiones quedan marcadas como «Demostración».",
-                        style = MaterialTheme.typography.bodySmall,
-                    )
-                }
-                Switch(checked = settings.demo, onCheckedChange = onDemo)
-            }
-            OutlinedButton(onClick = onCreateDemoSession, modifier = Modifier.fillMaxWidth()) {
-                Text("Crear sesión de ejemplo (25 min) en el historial")
-            }
-        }
-        HorizontalDivider()
-        Text("Política de privacidad", style = MaterialTheme.typography.titleMedium)
-        Text(
-            "fs2ftms funciona íntegramente en este dispositivo. No tiene acceso a Internet, " +
-                "no crea cuentas y no envía datos a ningún servidor.",
-        )
-        Text(
-            "Usa Bluetooth para buscar dispositivos cercanos y leer los datos de la elíptica y el pulso " +
-                "que emite el reloj. No usa esos datos para obtener tu ubicación.",
-        )
-        Text(
-            "Las sesiones (tiempo, distancia, cadencia, potencia, resistencia, calorías y frecuencia cardíaca) " +
-                "se guardan solo en este dispositivo. Salen de él únicamente cuando exportas un fichero y eliges " +
-                "con qué aplicación compartirlo. Puedes borrar cada sesión desde el historial.",
-        )
-        Text("Versión $versionName", style = MaterialTheme.typography.bodySmall)
-    }
-}
-
 internal fun formatDuration(seconds: Int): String {
     val h = seconds / 3600
     val m = (seconds % 3600) / 60
@@ -445,3 +343,7 @@ internal fun formatDuration(seconds: Int): String {
 
 internal fun formatDistance(meters: Int): String =
     if (meters >= 1000) "%.2f km".format(meters / 1000.0) else "$meters m"
+
+/** Distancia separada en valor y unidad, para mostrarlos con tamaños distintos. */
+internal fun distanceParts(meters: Int): Pair<String, String> =
+    if (meters >= 1000) "%.2f".format(meters / 1000.0) to "km" else meters.toString() to "m"

@@ -132,7 +132,7 @@ class RecorderService : Service() {
         if (demo || machineAddress == null) {
             log.add(DemoWorkout.NAME, "Sesión simulada iniciada")
             container.recorder.update { it.copy(machineConnected = true, heartRateConnected = true) }
-            val generator = DemoWorkout()
+            val generator = DemoWorkout(settings.maxHeartRate ?: 180)
             demoJob = scope.launch {
                 while (isActive) {
                     delay(1000)

@@ -62,7 +62,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             val start = end - seconds * 1000L
             val session = SessionEntity(startedAtMs = start, endedAtMs = end, machineName = DemoWorkout.NAME)
             val id = dao.insertSession(session)
-            val generator = DemoWorkout()
+            val generator = DemoWorkout(container.settings.value.maxHeartRate ?: 180)
             val samples = List(seconds) { index ->
                 val point = generator.next()
                 SampleEntity(
