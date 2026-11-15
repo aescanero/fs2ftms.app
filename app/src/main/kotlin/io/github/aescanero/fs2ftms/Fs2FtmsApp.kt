@@ -34,6 +34,8 @@ data class RecorderState(
     val heartRateConnected: Boolean = false,
     val sample: WorkoutSample? = null,
     val heartRate: Int? = null,
+    /** Instante (SystemClock.elapsedRealtime) de la última lectura de pulso. */
+    val heartRateAtMs: Long? = null,
     val error: String? = null,
 )
 

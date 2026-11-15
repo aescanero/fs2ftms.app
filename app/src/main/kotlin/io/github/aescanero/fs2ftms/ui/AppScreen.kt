@@ -5,8 +5,10 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -16,11 +18,18 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.List
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.NavigationRail
+import androidx.compose.material3.NavigationRailItem
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -30,6 +39,7 @@ import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -56,8 +66,13 @@ import java.util.Date
 import java.util.Locale
 
 private val tabs = listOf("Entreno", "Historial", "Dispositivos", "Ajustes")
+private val tabIcons = listOf(
+    Icons.Filled.PlayArrow,
+    Icons.AutoMirrored.Filled.List,
+    Icons.Filled.Search,
+    Icons.Filled.Settings,
+)
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AppScreen(
     vm: MainViewModel,
@@ -74,65 +89,98 @@ fun AppScreen(
     val events by vm.events.collectAsStateWithLifecycle()
     var tab by rememberSaveable { mutableIntStateOf(0) }
 
+    // Mientras se graba solo está disponible la pantalla de entreno: evita salir de ella por un toque.
+    val locked = recorder.recording
+    LaunchedEffect(locked) { if (locked) tab = 0 }
     BackHandler(enabled = tab == 1 && detail != null) { vm.closeSession() }
 
-    Scaffold { padding ->
-        Column(Modifier.padding(padding).fillMaxSize()) {
-            TabRow(selectedTabIndex = tab) {
-                tabs.forEachIndexed { index, title ->
-                    Tab(selected = tab == index, onClick = { tab = index }, text = { Text(title, maxLines = 1) })
-                }
-            }
-            when (tab) {
-                0 -> WorkoutTab(
-                    recorder = recorder,
-                    settings = settings,
-                    hasPermissions = hasPermissions,
-                    onRequestPermissions = onRequestPermissions,
-                    onStart = { vm.startRecording() },
-                    onStop = { vm.stopRecording() },
-                )
-                1 -> {
-                    val current = detail
-                    if (current != null) {
-                        SessionDetailScreen(
-                            detail = current,
-                            onBack = { vm.closeSession() },
-                            onExport = { onShare(vm.exportSessionIntent()) },
-                            onDelete = { vm.deleteSession(current.session.id) },
-                        )
-                    } else {
-                        HistoryList(sessions) { vm.openSession(it) }
-                    }
-                }
-                2 -> if (hasPermissions) {
-                    DevicesTab(
-                        settings = settings,
-                        scan = scan,
-                        dump = dump,
-                        events = events,
-                        onStartScan = { vm.startScan() },
-                        onStopScan = { vm.stopScan() },
-                        onInspect = { vm.inspect(it) },
-                        onCancelDump = { vm.cancelDump() },
-                        onClearDump = { vm.clearDump() },
-                        onUseAsMachine = { vm.useDumpAsMachine() },
-                        onUseAsHeartRate = { vm.useDumpAsHeartRate() },
-                        onClearMachine = { vm.clearMachine() },
-                        onClearHeartRate = { vm.clearHeartRate() },
-                        onShareDump = { onShare(vm.exportDumpIntent()) },
-                        onShareEvents = { onShare(vm.exportEventsIntent()) },
+    val content: @Composable () -> Unit = {
+        when (tab) {
+            0 -> WorkoutTab(
+                recorder = recorder,
+                settings = settings,
+                hasPermissions = hasPermissions,
+                onRequestPermissions = onRequestPermissions,
+                onStart = { vm.startRecording() },
+                onStop = { vm.stopRecording() },
+            )
+            1 -> {
+                val current = detail
+                if (current != null) {
+                    SessionDetailScreen(
+                        detail = current,
+                        maxHeartRate = settings.maxHeartRate,
+                        onBack = { vm.closeSession() },
+                        onExport = { onShare(vm.exportSessionIntent()) },
+                        onDelete = { vm.deleteSession(current.session.id) },
                     )
                 } else {
-                    PermissionRequest(onRequestPermissions)
+                    HistoryList(sessions) { vm.openSession(it) }
                 }
-                else -> SettingsTab(
+            }
+            2 -> if (hasPermissions) {
+                DevicesTab(
                     settings = settings,
-                    versionName = vm.versionName,
-                    onDebug = { vm.setDebug(it) },
-                    onAge = { vm.setAge(it) },
-                    onMaxHeartRate = { vm.setMeasuredMaxHeartRate(it) },
+                    scan = scan,
+                    dump = dump,
+                    events = events,
+                    onStartScan = { vm.startScan() },
+                    onStopScan = { vm.stopScan() },
+                    onInspect = { vm.inspect(it) },
+                    onCancelDump = { vm.cancelDump() },
+                    onClearDump = { vm.clearDump() },
+                    onUseAsMachine = { vm.useDumpAsMachine() },
+                    onUseAsHeartRate = { vm.useDumpAsHeartRate() },
+                    onClearMachine = { vm.clearMachine() },
+                    onClearHeartRate = { vm.clearHeartRate() },
+                    onShareDump = { onShare(vm.exportDumpIntent()) },
+                    onShareEvents = { onShare(vm.exportEventsIntent()) },
                 )
+            } else {
+                PermissionRequest(onRequestPermissions)
+            }
+            else -> SettingsTab(
+                settings = settings,
+                versionName = vm.versionName,
+                onDebug = { vm.setDebug(it) },
+                onAge = { vm.setAge(it) },
+                onMaxHeartRate = { vm.setMeasuredMaxHeartRate(it) },
+            )
+        }
+    }
+
+    Scaffold { padding ->
+        BoxWithConstraints(Modifier.padding(padding).fillMaxSize()) {
+            val wide = maxWidth >= 600.dp && maxWidth > maxHeight
+            if (wide) {
+                Row(Modifier.fillMaxSize()) {
+                    NavigationRail {
+                        tabs.forEachIndexed { index, title ->
+                            NavigationRailItem(
+                                selected = tab == index,
+                                enabled = !locked || index == 0,
+                                onClick = { tab = index },
+                                icon = { Icon(tabIcons[index], contentDescription = null) },
+                                label = { Text(title) },
+                            )
+                        }
+                    }
+                    Box(Modifier.weight(1f).fillMaxHeight()) { content() }
+                }
+            } else {
+                Column(Modifier.fillMaxSize()) {
+                    TabRow(selectedTabIndex = tab) {
+                        tabs.forEachIndexed { index, title ->
+                            Tab(
+                                selected = tab == index,
+                                enabled = !locked || index == 0,
+                                onClick = { tab = index },
+                                text = { Text(title, maxLines = 1) },
+                            )
+                        }
+                    }
+                    content()
+                }
             }
         }
     }

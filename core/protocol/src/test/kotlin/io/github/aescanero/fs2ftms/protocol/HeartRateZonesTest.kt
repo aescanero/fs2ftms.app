@@ -27,6 +27,18 @@ class HeartRateZonesTest {
     }
 
     @Test
+    fun timeInZonesIgnoresGapsAndMissingPulse() {
+        val totals = zones.timeInZones(
+            listOf(1 to 100, 2 to 100, 3 to 130, 4 to null, 5 to 130, 60 to 150, 61 to 80),
+        )
+        assertEquals(2, totals[HeartRateZone.RECOVERY])
+        assertEquals(2, totals[HeartRateZone.AEROBIC])
+        // El salto de 55 s (pausa) se limita a 5 s.
+        assertEquals(5, totals[HeartRateZone.ANAEROBIC])
+        assertEquals(1, totals[null])
+    }
+
+    @Test
     fun estimate() {
         assertEquals(180, HeartRateZones.estimateMax(40))
     }

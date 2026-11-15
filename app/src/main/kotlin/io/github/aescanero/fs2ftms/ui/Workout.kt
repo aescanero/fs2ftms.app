@@ -1,5 +1,6 @@
 package io.github.aescanero.fs2ftms.ui
 
+import android.os.SystemClock
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -13,17 +14,22 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.sizeIn
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -37,8 +43,10 @@ import androidx.compose.ui.unit.dp
 import io.github.aescanero.fs2ftms.DeviceSettings
 import io.github.aescanero.fs2ftms.RecorderState
 import io.github.aescanero.fs2ftms.protocol.WorkoutSample
+import kotlinx.coroutines.delay
 
 private const val NO_VALUE = "—"
+private const val STALE_PULSE_SECONDS = 5
 
 /**
  * Pantalla de entreno pensada para leerse a un metro: sin desplazamiento, con el pulso, el tiempo
@@ -62,23 +70,31 @@ internal fun WorkoutTab(
     val machine = settings.machineName ?: settings.machineAddress
     val heartRateSource = settings.heartRateName ?: settings.heartRateAddress
     var confirmFinish by remember { mutableStateOf(false) }
+    val now by produceState(SystemClock.elapsedRealtime(), recorder.recording) {
+        while (true) {
+            value = SystemClock.elapsedRealtime()
+            delay(1000)
+        }
+    }
+    val pulseAge = recorder.heartRateAtMs?.let { ((now - it) / 1000).toInt() }
+    val staleSeconds = pulseAge?.takeIf { it > STALE_PULSE_SECONDS }
 
     Column(Modifier.fillMaxSize().padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        StatusStrip(recorder, machine, heartRateSource)
+        StatusStrip(recorder, machine, heartRateSource, onRetry = onStart)
 
         BoxWithConstraints(Modifier.weight(1f).fillMaxWidth()) {
             val wide = maxWidth >= 600.dp && maxWidth > maxHeight
             if (wide) {
                 Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     if (heartRateSource != null) {
-                        PulseSlot(recorder, settings, Modifier.weight(0.42f).fillMaxHeight())
+                        PulseSlot(recorder, settings, staleSeconds, Modifier.weight(0.42f).fillMaxHeight())
                     }
                     Metrics(recorder.sample, wide = true, Modifier.weight(0.58f).fillMaxHeight())
                 }
             } else {
                 Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     if (heartRateSource != null) {
-                        PulseSlot(recorder, settings, Modifier.weight(0.42f).fillMaxWidth())
+                        PulseSlot(recorder, settings, staleSeconds, Modifier.weight(0.42f).fillMaxWidth())
                     }
                     Metrics(recorder.sample, wide = false, Modifier.weight(0.58f).fillMaxWidth())
                 }
@@ -127,12 +143,31 @@ internal fun WorkoutTab(
 }
 
 @Composable
-private fun StatusStrip(recorder: RecorderState, machine: String?, heartRateSource: String?) {
+private fun StatusStrip(recorder: RecorderState, machine: String?, heartRateSource: String?, onRetry: () -> Unit) {
     val error = recorder.error
     if (!recorder.recording) {
         Column {
             if (error != null) {
-                Text("⚠ $error", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.titleMedium)
+                Surface(
+                    color = MaterialTheme.colorScheme.errorContainer,
+                    contentColor = MaterialTheme.colorScheme.onErrorContainer,
+                    shape = MaterialTheme.shapes.medium,
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+                ) {
+                    Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Filled.Warning, contentDescription = "Error")
+                        Text(
+                            error,
+                            style = MaterialTheme.typography.bodyLarge,
+                            modifier = Modifier.weight(1f).padding(horizontal = 12.dp),
+                        )
+                        if (machine != null) {
+                            TextButton(onClick = onRetry, modifier = Modifier.heightIn(min = 48.dp)) {
+                                Text("Reintentar")
+                            }
+                        }
+                    }
+                }
             }
             Text(
                 "Elíptica: ${machine ?: "sin elegir"}  ·  Pulso: ${heartRateSource ?: "sin elegir"}",
@@ -165,11 +200,16 @@ private fun StatusStrip(recorder: RecorderState, machine: String?, heartRateSour
 }
 
 @Composable
-private fun PulseSlot(recorder: RecorderState, settings: DeviceSettings, modifier: Modifier) {
+private fun PulseSlot(recorder: RecorderState, settings: DeviceSettings, staleSeconds: Int?, modifier: Modifier) {
     val maxHeartRate = settings.maxHeartRate
     Box(modifier, contentAlignment = Alignment.Center) {
         if (maxHeartRate != null) {
-            HeartRateGauge(recorder.heartRate, maxHeartRate, Modifier.sizeIn(maxWidth = 440.dp, maxHeight = 440.dp))
+            HeartRateGauge(
+                bpm = recorder.heartRate,
+                maxHeartRate = maxHeartRate,
+                modifier = Modifier.sizeIn(maxWidth = 440.dp, maxHeight = 440.dp),
+                staleSeconds = staleSeconds,
+            )
         } else {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text("Pulso", style = MaterialTheme.typography.titleSmall)

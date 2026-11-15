@@ -14,6 +14,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
@@ -47,7 +48,13 @@ private const val GAP_ANGLE = 2f
  * la lectura no depende solo del color.
  */
 @Composable
-internal fun HeartRateGauge(bpm: Int?, maxHeartRate: Int, modifier: Modifier = Modifier) {
+internal fun HeartRateGauge(
+    bpm: Int?,
+    maxHeartRate: Int,
+    modifier: Modifier = Modifier,
+    staleSeconds: Int? = null,
+) {
+    val dim = if (staleSeconds != null) 0.4f else 1f
     val zones = HeartRateZones(maxHeartRate)
     val current = bpm?.let { zones.zoneOf(it) }
     val markerColor = MaterialTheme.colorScheme.onSurface
@@ -65,7 +72,7 @@ internal fun HeartRateGauge(bpm: Int?, maxHeartRate: Int, modifier: Modifier = M
         modifier.aspectRatio(1f).semantics { contentDescription = description },
         contentAlignment = Alignment.Center,
     ) {
-        Canvas(Modifier.fillMaxSize().padding(12.dp)) {
+        Canvas(Modifier.fillMaxSize().padding(12.dp).alpha(dim)) {
             val stroke = size.minDimension * 0.09f
             val diameter = size.minDimension - stroke
             val topLeft = Offset((size.width - diameter) / 2f, (size.height - diameter) / 2f)
@@ -100,6 +107,7 @@ internal fun HeartRateGauge(bpm: Int?, maxHeartRate: Int, modifier: Modifier = M
                 bpm?.toString() ?: "—",
                 style = MaterialTheme.typography.displayMedium,
                 fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = dim),
             )
             Text("ppm", style = MaterialTheme.typography.labelLarge)
             val label = when {
@@ -114,7 +122,13 @@ internal fun HeartRateGauge(bpm: Int?, maxHeartRate: Int, modifier: Modifier = M
                 color = current?.let { zoneColor(it) } ?: MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
             )
-            if (bpm != null) {
+            if (staleSeconds != null) {
+                Text(
+                    "Última lectura hace $staleSeconds s",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.error,
+                )
+            } else if (bpm != null) {
                 Text(
                     "${bpm * 100 / maxHeartRate} % de $maxHeartRate",
                     style = MaterialTheme.typography.labelMedium,

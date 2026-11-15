@@ -29,7 +29,27 @@ class HeartRateZones(val maxHeartRate: Int) {
         return ((bpm - floor).toFloat() / span).coerceIn(0f, 1f)
     }
 
+    /**
+     * Segundos en cada zona a partir de muestras (tiempo activo acumulado, pulso). La clave null
+     * agrupa el tiempo por debajo de la zona 1; las muestras sin pulso no cuentan.
+     */
+    fun timeInZones(points: List<Pair<Int, Int?>>): Map<HeartRateZone?, Int> {
+        val totals = LinkedHashMap<HeartRateZone?, Int>()
+        var previous: Int? = null
+        for ((elapsed, bpm) in points) {
+            val step = previous?.let { (elapsed - it).coerceIn(0, MAX_STEP_SECONDS) } ?: 1
+            previous = elapsed
+            if (bpm != null && step > 0) {
+                val zone = zoneOf(bpm)
+                totals[zone] = (totals[zone] ?: 0) + step
+            }
+        }
+        return totals
+    }
+
     companion object {
+        private const val MAX_STEP_SECONDS = 5
+
         /** Estimación clásica cuando no se conoce la máxima medida. */
         fun estimateMax(age: Int): Int = 220 - age
     }

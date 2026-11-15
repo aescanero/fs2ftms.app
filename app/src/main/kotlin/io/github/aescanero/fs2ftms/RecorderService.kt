@@ -98,7 +98,7 @@ class RecorderService : Service() {
             val sample = accumulator.add(raw)
             val now = System.currentTimeMillis()
             val heartRate = lastHeartRate?.takeIf { SystemClock.elapsedRealtime() - lastHeartRateAt < HEART_RATE_MAX_AGE_MS }
-            container.recorder.update { it.copy(sample = sample, heartRate = heartRate) }
+            container.recorder.update { it.copy(sample = sample) }
             queue.trySend {
                 val id = sessionId ?: dao.insertSession(
                     SessionEntity(startedAtMs = now, endedAtMs = now, machineName = settings.machineName),
@@ -161,7 +161,7 @@ class RecorderService : Service() {
                         val bpm = HeartRateParser.parse(value) ?: return
                         lastHeartRate = bpm
                         lastHeartRateAt = SystemClock.elapsedRealtime()
-                        container.recorder.update { it.copy(heartRate = bpm) }
+                        container.recorder.update { it.copy(heartRate = bpm, heartRateAtMs = lastHeartRateAt) }
                     }
                 },
             ).also { it.start() }

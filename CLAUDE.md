@@ -16,6 +16,11 @@ Sustituye a la app FitShow. Objetivo: histórico propio, dashboard, exportación
 3. Dashboard diario, semanal y mensual con navegación por el histórico.
 4. Calorías: estimación por pulso (peso, edad, sexo) y corrección manual.
 
+UX (15-11-2026): indicador circular de pulso por zonas (FC máx. por edad o medida, en Ajustes), pantalla
+de entreno sin scroll con jerarquía de métricas, pantalla encendida y confirmación al finalizar, pestañas
+bloqueadas mientras se graba, barra lateral en tablet horizontal, detalle de sesión con tiempo por zona.
+Todo sin validar en dispositivo. Revisión repetible con el agente `ux-review` (capturas en `docs/ux/`).
+
 Decisiones del usuario (15-11-2026): se retira el puente hacia el reloj (el reloj no admite elípticas y
 Android no permite fijar la dirección BLE del anuncio); la capa de depuración (volcado GATT, registro de
 conexiones, exportaciones) se mantiene como opción en Ajustes. El reloj solo emite pulso con un
@@ -49,7 +54,7 @@ principal se reserva para arquitectura, código BLE/GATT, concurrencia y diagnó
 | Nivel | Agentes | Uso |
 |---|---|---|
 | haiku | git-ops, ci-triage, lint-fix, deps-update, docs-sync, boilerplate, frame-fixtures, log-digest, release-notes | Tareas mecánicas con entrada y salida cerradas |
-| sonnet | test-writer, code-review, ui-scaffold, ref-research | Trabajo con criterio acotado |
+| sonnet | test-writer, code-review, ui-scaffold, ref-research, ux-review | Trabajo con criterio acotado |
 | principal | — | Diseño, BLE, decisiones y revisión final |
 
 Contexto técnico previo: `docs/hallazgos-previos.md`.
