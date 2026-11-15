@@ -1,6 +1,5 @@
 package io.github.aescanero.fs2ftms.protocol
 
-import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
@@ -38,15 +37,5 @@ class CrossTrainerDataParserTest {
         val parser = CrossTrainerDataParser()
         assertNull(parser.accept(hex("00 2F 00 94")))
         assertNull(parser.accept(hex("9F 00")))
-    }
-
-    @Test
-    fun translatesToIndoorBikeWithinTwentyBytes() {
-        val parser = CrossTrainerDataParser()
-        parser.accept(first)
-        val sample = parser.accept(last)!!
-        val expected = hex("74 09 94 04 4A 00 44 00 00 03 00 29 00 01 00 FF FF FF 1B 00")
-        assertArrayEquals(expected, FtmsCodec.indoorBikeData(sample))
-        assertEquals(20, expected.size)
     }
 }

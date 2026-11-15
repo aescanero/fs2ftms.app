@@ -13,4 +13,4 @@ dependencyResolutionManagement {
     }
 }
 rootProject.name = "fs2ftms"
-include(":app", ":core:protocol", ":ble:ftms", ":ble:central")
+include(":app", ":core:protocol", ":ble:central", ":data")

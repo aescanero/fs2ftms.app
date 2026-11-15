@@ -10,9 +10,7 @@ import android.bluetooth.BluetoothManager
 import android.bluetooth.BluetoothProfile
 import android.bluetooth.BluetoothStatusCodes
 import android.content.Context
-import io.github.aescanero.fs2ftms.protocol.CrossTrainerDataParser
 import io.github.aescanero.fs2ftms.protocol.FtmsUuids
-import io.github.aescanero.fs2ftms.protocol.WorkoutSample
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
@@ -20,22 +18,24 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
+import java.util.UUID
 
 /**
- * Cliente de la máquina real: se suscribe a su Cross Trainer Data (0x2ACE) y entrega muestras.
- * Solo lectura (no escribe en el Control Point). Reconecta con espera creciente.
+ * Cliente GATT de solo lectura: se suscribe a las notificaciones de un servicio y las entrega.
+ * La primera característica es obligatoria; el resto, opcionales. Reconecta con espera creciente.
  */
 @SuppressLint("MissingPermission")
-class FtmsSourceClient(
+class GattNotifyClient(
     private val context: Context,
     private val scope: CoroutineScope,
     private val address: String,
+    private val service: UUID,
+    private val characteristics: List<UUID>,
     private val listener: Listener,
 ) {
     interface Listener {
         fun onState(text: String, connected: Boolean)
-        fun onSample(sample: WorkoutSample)
-        fun onMachineStatus(value: ByteArray)
+        fun onData(characteristic: UUID, value: ByteArray)
     }
 
     private sealed class Ev {
@@ -57,7 +57,7 @@ class FtmsSourceClient(
                 val subscribed = runSession()
                 failures = if (subscribed) 0 else failures + 1
                 val wait = BACKOFF_SECONDS[failures.coerceAtMost(BACKOFF_SECONDS.size - 1)]
-                listener.onState("Reintento de conexión con la máquina en $wait s", false)
+                listener.onState("Reintento de conexión en $wait s", false)
                 delay(wait * 1000L)
             }
         }
@@ -93,7 +93,7 @@ class FtmsSourceClient(
         return await(events, Ev.DescWrite::class.java, 5000)?.status == BluetoothGatt.GATT_SUCCESS
     }
 
-    /** Devuelve true si llegó a suscribirse a los datos (la sesión fue útil). */
+    /** Devuelve true si llegó a suscribirse a la característica obligatoria. */
     private suspend fun runSession(): Boolean {
         val adapter = manager?.adapter
         if (adapter == null || !adapter.isEnabled) {
@@ -103,11 +103,10 @@ class FtmsSourceClient(
         val device: BluetoothDevice = try {
             adapter.getRemoteDevice(address)
         } catch (e: IllegalArgumentException) {
-            listener.onState("Dirección de máquina no válida: $address", false)
+            listener.onState("Dirección no válida: $address", false)
             return false
         }
         val events = Channel<Ev>(Channel.UNLIMITED)
-        val parser = CrossTrainerDataParser()
         val callback = object : BluetoothGattCallback() {
             override fun onConnectionStateChange(gatt: BluetoothGatt, status: Int, newState: Int) {
                 events.trySend(Ev.Conn(status, newState))
@@ -126,43 +125,42 @@ class FtmsSourceClient(
                 characteristic: BluetoothGattCharacteristic,
                 value: ByteArray,
             ) {
-                when (characteristic.uuid) {
-                    FtmsUuids.CROSS_TRAINER_DATA -> parser.accept(value)?.let(listener::onSample)
-                    FtmsUuids.MACHINE_STATUS -> listener.onMachineStatus(value)
-                }
+                listener.onData(characteristic.uuid, value)
             }
         }
         var subscribed = false
         var gatt: BluetoothGatt? = null
         try {
-            listener.onState("Conectando con la máquina…", false)
+            listener.onState("Conectando…", false)
             val link = device.connectGatt(context, false, callback, BluetoothDevice.TRANSPORT_LE)
             if (link == null) {
-                listener.onState("No se pudo iniciar la conexión con la máquina", false)
+                listener.onState("No se pudo iniciar la conexión", false)
                 return false
             }
             gatt = link
             if (await(events, Ev.Conn::class.java, 35000) == null) {
-                listener.onState("La máquina no responde (¿apagada o conectada a otra app?)", false)
+                listener.onState("Sin respuesta (¿apagado o conectado a otra app?)", false)
                 return false
             }
             if (!link.discoverServices() || await(events, Ev.Services::class.java, 20000) == null) {
-                listener.onState("No se pudieron descubrir los servicios de la máquina", false)
+                listener.onState("No se pudieron descubrir los servicios", false)
                 return false
             }
-            val service = link.getService(FtmsUuids.FITNESS_MACHINE_SERVICE)
-            val data = service?.getCharacteristic(FtmsUuids.CROSS_TRAINER_DATA)
-            if (data == null) {
-                listener.onState("La máquina no ofrece Cross Trainer Data (0x2ACE)", false)
+            val gattService = link.getService(service)
+            val required = gattService?.getCharacteristic(characteristics.first())
+            if (required == null) {
+                listener.onState("El dispositivo no ofrece ${FtmsUuids.display(characteristics.first())}", false)
                 return false
             }
-            if (!subscribe(link, events, data)) {
-                listener.onState("La máquina rechazó la suscripción a 0x2ACE", false)
+            if (!subscribe(link, events, required)) {
+                listener.onState("Suscripción rechazada a ${FtmsUuids.display(required.uuid)}", false)
                 return false
             }
             subscribed = true
-            service.getCharacteristic(FtmsUuids.MACHINE_STATUS)?.let { subscribe(link, events, it) }
-            listener.onState("Máquina conectada: recibiendo datos", true)
+            characteristics.drop(1).forEach { uuid ->
+                gattService.getCharacteristic(uuid)?.let { subscribe(link, events, it) }
+            }
+            listener.onState("Conectado: recibiendo datos", true)
             while (true) {
                 val event = events.receive()
                 if (event is Ev.Conn && event.newState == BluetoothProfile.STATE_DISCONNECTED) {
@@ -170,7 +168,7 @@ class FtmsSourceClient(
                 }
             }
         } catch (e: LinkLost) {
-            listener.onState("Conexión con la máquina perdida (estado ${e.status})", false)
+            listener.onState("Conexión perdida (estado ${e.status})", false)
         } finally {
             runCatching { gatt?.disconnect() }
             runCatching { gatt?.close() }

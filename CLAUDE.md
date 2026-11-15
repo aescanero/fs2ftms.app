@@ -1,8 +1,8 @@
-# fs2ftms — puente FitShow → FTMS (Android)
+# fs2ftms — registrador de entrenamientos de elíptica (Android)
 
-App Android que se conecta como central BLE a la elíptica Merach (protocolo FitShow:
-servicio FFF0, notify FFF1, write FFF2, tramas `02 … XOR 03`) y publica un servidor
-GATT FTMS (0x1826, Cross Trainer Data 0x2ACE) para el reloj Amazfit Active 3.
+App Android que lee por FTMS los datos de la elíptica Merach MRK-E27 (Cross Trainer Data 0x2ACE),
+recibe el pulso que emite el reloj Amazfit Active 3 (Heart Rate Service 0x180D) y graba la sesión.
+Sustituye a la app FitShow. Objetivo: histórico propio, dashboard, exportación JSON y Health Connect.
 
 ## Entorno
 - Sin ordenador ni Android Studio: solo Claude Code (nube) y el móvil (Samsung A33).
@@ -10,41 +10,35 @@ GATT FTMS (0x1826, Cross Trainer Data 0x2ACE) para el reloj Amazfit Active 3.
   la depuración se hace con la pantalla de diagnóstico y exportación de logs.
 - Idioma: código e identificadores en inglés; textos de UI, commits y docs en español.
 
-## Hitos
-1. Emulador FTMS con datos simulados + telemetría del reloj (conexiones, MTU,
-   suscripciones, escrituras al Control Point, notificaciones enviadas/entregadas).
-2. Cliente FitShow + depurador opcional (mapa GATT, tramas en bruto, sonda de
-   consultas, detector de cambios, FTMS nativo de la Merach, exportación).
-3. Puente completo con servicio en primer plano y reconexión.
+## Entregas
+1. Grabación de la sesión (máquina + pulso), histórico con detalle y exportación JSON. [hecho, sin validar en dispositivo]
+2. Escritura en Health Connect como entrenamiento de elíptica.
+3. Dashboard diario, semanal y mensual con navegación por el histórico.
+4. Calorías: estimación por pulso (peso, edad, sexo) y corrección manual.
+
+Decisiones del usuario (15-11-2026): se retira el puente hacia el reloj (el reloj no admite elípticas y
+Android no permite fijar la dirección BLE del anuncio); la capa de depuración (volcado GATT, registro de
+conexiones, exportaciones) se mantiene como opción en Ajustes. El reloj solo emite pulso con un
+entrenamiento iniciado, así que Zepp también grabará su sesión.
 
 ## Arquitectura y prácticas
 - Kotlin + Jetpack Compose (Material 3), actividad única, navegación Compose.
 - UDF/MVVM: ViewModel + StateFlow; corrutinas y Flow; sin lógica en composables.
-- Módulos: `:app` (UI), `:core:protocol` (Kotlin puro: tramas FitShow y codificación
-  FTMS, sin dependencias Android, 100 % testeable), `:ble:fitshow`, `:ble:ftms`,
-  `:data` (Room para sesiones/telemetría, DataStore para ajustes).
-- Hilt para inyección de dependencias. Version catalog (`libs.versions.toml`), Gradle Kotlin DSL.
-- BLE: permisos de ejecución BLUETOOTH_SCAN (neverForLocation), BLUETOOTH_CONNECT y
-  BLUETOOTH_ADVERTISE; servicio en primer plano tipo `connectedDevice`; operaciones
-  GATT serializadas en cola; reconexión con backoff.
+- Módulos por capa (ver "Estado real"). Version catalog (`libs.versions.toml`), Gradle Kotlin DSL.
+- BLE: permisos de ejecución BLUETOOTH_SCAN (neverForLocation) y BLUETOOTH_CONNECT; servicio en
+  primer plano tipo `connectedDevice`; reconexión con backoff; la app solo lee, nunca escribe en la máquina.
 - Calidad en CI: ktlint, detekt, Android Lint, tests unitarios del protocolo con
   tramas reales como fixtures. R8 en release. Firma con secret de GitHub.
-- Seguridad: la sonda FitShow solo envía consultas; los comandos de control solo a mano.
 - Evitar la palabra "focus" en textos.
 
-## Estado real (hito 1)
-- Módulos existentes: `:app`, `:core:protocol`, `:ble:ftms`, `:ble:central` (escáner y volcado GATT de solo consulta). minSdk 33.
-- Resultado de las pruebas del hito 1: el Active 3 lista el emulador, conecta ~2,4 s sin leer ni suscribirse y
-  corta; tras 3 intentos da error (igual en móvil y tablet, sin emparejar). Plan: volcar la Toputure
-  (bicicleta, aceptada por el reloj) y replicar su anuncio y GATT en el emulador.
-- Hallazgo clave (14-11-2026): la Merach MRK-E27 SÍ publica FTMS válido (0x2ACE a ~1,25 Hz, sin pedir
-  control, partido en 2 paquetes por MTU 23; incluye resistencia). El reloj (Zepp OS 6) no admite elípticas:
-  solo acepta el perfil Indoor Bike, sin leer Feature ni negociar MTU (máx. 20 bytes por notificación).
-- El puente actual es FTMS→FTMS: `FtmsSourceClient` (:ble:central) lee 0x2ACE de la Merach y `FtmsServer`
-  lo republica como Indoor Bike Data (0x2AD2). El protocolo FitShow ya no es necesario para el puente;
-  queda como opción de diagnóstico. Detalle de tramas en `docs/hallazgos-previos.md`.
-- Aplazado al hito 2, cuando haga falta persistencia: Hilt, Room/DataStore, `:ble:fitshow`, `:data`.
-- Aplazado: ktlint y detekt (pendiente de versiones compatibles con Kotlin 2.2). CI ejecuta tests y assembleRelease.
+## Estado real
+- Módulos: `:app` (UI y servicio de grabación), `:core:protocol` (Kotlin puro: parser 0x2ACE, pulso,
+  acumulador de sesión; con tests sobre tramas reales), `:ble:central` (escáner, volcado GATT,
+  `GattNotifyClient` con reconexión, `EventLog`), `:data` (Room: sesiones y muestras). minSdk 33.
+- La Merach emite 0x2ACE a ~1,25 Hz sin pedir control, en 2 paquetes por MTU 23; incluye resistencia y
+  calorías. Detalle de tramas en `docs/hallazgos-previos.md`. El protocolo FitShow no se usa.
+- Health Connect es por dispositivo: la app debe ejecutarse en el móvil (A33) para convivir con Zepp.
+- Sin Hilt (contenedor manual en `Fs2FtmsApp`). Sin ktlint/detekt todavía. CI: tests y assembleRelease.
 - Sin compilación local: Maven y Google están bloqueados en la sesión; cada cambio se valida en Actions
   (`gh run list`, `gh run view <id> --log-failed`). Los secrets no se pueden escribir desde la sesión.
 

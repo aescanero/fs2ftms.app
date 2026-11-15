@@ -15,6 +15,9 @@ object FtmsUuids {
     val CONTROL_POINT: UUID = short(0x2AD9)
     val MACHINE_STATUS: UUID = short(0x2ADA)
 
+    val HEART_RATE_SERVICE: UUID = short(0x180D)
+    val HEART_RATE_MEASUREMENT: UUID = short(0x2A37)
+
     val BATTERY_SERVICE: UUID = short(0x180F)
     val BATTERY_LEVEL: UUID = short(0x2A19)
 

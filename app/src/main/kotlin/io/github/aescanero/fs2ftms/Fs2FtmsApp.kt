@@ -2,9 +2,10 @@ package io.github.aescanero.fs2ftms
 
 import android.app.Application
 import android.content.Context
+import io.github.aescanero.fs2ftms.ble.central.EventLog
 import io.github.aescanero.fs2ftms.ble.central.GattInspector
-import io.github.aescanero.fs2ftms.ble.ftms.TelemetryRecorder
-import io.github.aescanero.fs2ftms.protocol.MachineType
+import io.github.aescanero.fs2ftms.data.AppDatabase
+import io.github.aescanero.fs2ftms.data.Sessions
 import io.github.aescanero.fs2ftms.protocol.WorkoutSample
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -12,30 +13,40 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 
-data class EmulatorSettings(
-    val machineType: MachineType = MachineType.INDOOR_BIKE,
-    val batteryService: Boolean = false,
-    val pauseAdvertisingWhileConnected: Boolean = false,
-    val cadencePerMinute: Int = 110,
-    /** Máquina real elegida en el escáner; con [useBridge] sustituye a los datos simulados. */
-    val sourceAddress: String? = null,
-    val sourceName: String? = null,
-    val useBridge: Boolean = false,
-    val requestBonding: Boolean = false,
+data class DeviceSettings(
+    val machineAddress: String? = null,
+    val machineName: String? = null,
+    val heartRateAddress: String? = null,
+    val heartRateName: String? = null,
+    val debug: Boolean = false,
+)
+
+data class RecorderState(
+    val recording: Boolean = false,
+    val machineConnected: Boolean = false,
+    val heartRateConnected: Boolean = false,
+    val sample: WorkoutSample? = null,
+    val heartRate: Int? = null,
+    val error: String? = null,
 )
 
 /** Estado compartido entre el servicio y la UI (sustituible por Hilt cuando crezca el grafo). */
 class AppContainer(context: Context) {
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
-    val telemetry = TelemetryRecorder()
+    val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    val database = AppDatabase.create(context)
+    val dao = database.sessionDao()
+    val eventLog = EventLog()
     val inspector = GattInspector(context, scope)
+    val recorder = MutableStateFlow(RecorderState())
+
     private val prefs = context.getSharedPreferences("settings", Context.MODE_PRIVATE)
     val settings = MutableStateFlow(
-        EmulatorSettings(
-            sourceAddress = prefs.getString("sourceAddress", null),
-            sourceName = prefs.getString("sourceName", null),
-            useBridge = prefs.getBoolean("useBridge", false),
-            requestBonding = prefs.getBoolean("requestBonding", false),
+        DeviceSettings(
+            machineAddress = prefs.getString("machineAddress", null) ?: prefs.getString("sourceAddress", null),
+            machineName = prefs.getString("machineName", null) ?: prefs.getString("sourceName", null),
+            heartRateAddress = prefs.getString("heartRateAddress", null),
+            heartRateName = prefs.getString("heartRateName", null),
+            debug = prefs.getBoolean("debug", false),
         ),
     )
 
@@ -43,16 +54,26 @@ class AppContainer(context: Context) {
         scope.launch {
             settings.collect {
                 prefs.edit()
-                    .putString("sourceAddress", it.sourceAddress)
-                    .putString("sourceName", it.sourceName)
-                    .putBoolean("useBridge", it.useBridge)
-                    .putBoolean("requestBonding", it.requestBonding)
+                    .putString("machineAddress", it.machineAddress)
+                    .putString("machineName", it.machineName)
+                    .putString("heartRateAddress", it.heartRateAddress)
+                    .putString("heartRateName", it.heartRateName)
+                    .putBoolean("debug", it.debug)
                     .apply()
             }
         }
+        // Sesiones que quedaron abiertas si el sistema cerró la app: se cierran con lo grabado.
+        scope.launch(Dispatchers.IO) {
+            dao.unfinished().forEach { session ->
+                val samples = dao.samples(session.id)
+                if (samples.isEmpty()) {
+                    dao.deleteSession(session.id)
+                } else {
+                    dao.updateSession(Sessions.summarize(session, samples, samples.last().timestampMs))
+                }
+            }
+        }
     }
-
-    val lastSample = MutableStateFlow<WorkoutSample?>(null)
 }
 
 class Fs2FtmsApp : Application() {
