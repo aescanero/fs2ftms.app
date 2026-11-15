@@ -42,6 +42,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import io.github.aescanero.fs2ftms.DeviceSettings
 import io.github.aescanero.fs2ftms.RecorderState
+import io.github.aescanero.fs2ftms.protocol.DemoWorkout
 import io.github.aescanero.fs2ftms.protocol.WorkoutSample
 import kotlinx.coroutines.delay
 
@@ -67,8 +68,9 @@ internal fun WorkoutTab(
         onDispose { view.keepScreenOn = false }
     }
 
-    val machine = settings.machineName ?: settings.machineAddress
-    val heartRateSource = settings.heartRateName ?: settings.heartRateAddress
+    val demo = settings.demoActive
+    val machine = if (demo) DemoWorkout.NAME else settings.machineName ?: settings.machineAddress
+    val heartRateSource = if (demo) DemoWorkout.NAME else settings.heartRateName ?: settings.heartRateAddress
     var confirmFinish by remember { mutableStateOf(false) }
     val now by produceState(SystemClock.elapsedRealtime(), recorder.recording) {
         while (true) {
@@ -181,6 +183,7 @@ private fun StatusStrip(recorder: RecorderState, machine: String?, heartRateSour
     val status = when {
         !recorder.machineConnected -> "Conectando con la elíptica…"
         recorder.sample == null -> "Esperando datos: mueve la elíptica"
+        machine == DemoWorkout.NAME -> "Grabando · demostración"
         else -> "Grabando"
     }
     val dotColor = if (receiving) Color(0xFFE53935) else MaterialTheme.colorScheme.outline

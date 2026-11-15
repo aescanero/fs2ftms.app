@@ -143,6 +143,8 @@ fun AppScreen(
                 settings = settings,
                 versionName = vm.versionName,
                 onDebug = { vm.setDebug(it) },
+                onDemo = { vm.setDemo(it) },
+                onCreateDemoSession = { vm.createDemoSession() },
                 onAge = { vm.setAge(it) },
                 onMaxHeartRate = { vm.setMeasuredMaxHeartRate(it) },
             )
@@ -336,6 +338,8 @@ private fun SettingsTab(
     settings: DeviceSettings,
     versionName: String,
     onDebug: (Boolean) -> Unit,
+    onDemo: (Boolean) -> Unit,
+    onCreateDemoSession: () -> Unit,
     onAge: (Int?) -> Unit,
     onMaxHeartRate: (Int?) -> Unit,
 ) {
@@ -396,6 +400,22 @@ private fun SettingsTab(
                 )
             }
             Switch(checked = settings.debug, onCheckedChange = onDebug)
+        }
+        if (settings.debug) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text("Modo demostración", fontWeight = FontWeight.Bold)
+                    Text(
+                        "«Iniciar sesión» graba datos simulados de elíptica y pulso, sin conectar con ningún " +
+                            "dispositivo. Las sesiones quedan marcadas como «Demostración».",
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                }
+                Switch(checked = settings.demo, onCheckedChange = onDemo)
+            }
+            OutlinedButton(onClick = onCreateDemoSession, modifier = Modifier.fillMaxWidth()) {
+                Text("Crear sesión de ejemplo (25 min) en el historial")
+            }
         }
         HorizontalDivider()
         Text("Política de privacidad", style = MaterialTheme.typography.titleMedium)

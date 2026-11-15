@@ -20,10 +20,14 @@ data class DeviceSettings(
     val heartRateAddress: String? = null,
     val heartRateName: String? = null,
     val debug: Boolean = false,
+    /** Con la depuración activa, graba una sesión simulada en lugar de conectar con los dispositivos. */
+    val demo: Boolean = false,
     val age: Int? = null,
     /** FC máxima medida; si falta, se estima con la edad. */
     val measuredMaxHeartRate: Int? = null,
 ) {
+    val demoActive: Boolean get() = debug && demo
+
     val maxHeartRate: Int?
         get() = measuredMaxHeartRate ?: age?.let { HeartRateZones.estimateMax(it) }
 }
@@ -56,6 +60,7 @@ class AppContainer(context: Context) {
             heartRateAddress = prefs.getString("heartRateAddress", null),
             heartRateName = prefs.getString("heartRateName", null),
             debug = prefs.getBoolean("debug", false),
+            demo = prefs.getBoolean("demo", false),
             age = prefs.getInt("age", 0).takeIf { it > 0 },
             measuredMaxHeartRate = prefs.getInt("measuredMaxHeartRate", 0).takeIf { it > 0 },
         ),
@@ -70,6 +75,7 @@ class AppContainer(context: Context) {
                     .putString("heartRateAddress", it.heartRateAddress)
                     .putString("heartRateName", it.heartRateName)
                     .putBoolean("debug", it.debug)
+                    .putBoolean("demo", it.demo)
                     .putInt("age", it.age ?: 0)
                     .putInt("measuredMaxHeartRate", it.measuredMaxHeartRate ?: 0)
                     .apply()

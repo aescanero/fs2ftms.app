@@ -18,6 +18,7 @@ import io.github.aescanero.fs2ftms.data.SampleEntity
 import io.github.aescanero.fs2ftms.data.SessionEntity
 import io.github.aescanero.fs2ftms.data.Sessions
 import io.github.aescanero.fs2ftms.protocol.CrossTrainerDataParser
+import io.github.aescanero.fs2ftms.protocol.DemoWorkout
 import io.github.aescanero.fs2ftms.protocol.FtmsUuids
 import io.github.aescanero.fs2ftms.protocol.HeartRateParser
 import io.github.aescanero.fs2ftms.protocol.SessionAccumulator
@@ -29,7 +30,9 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import java.util.UUID
 
@@ -43,6 +46,8 @@ class RecorderService : Service() {
     private var writes: Channel<suspend () -> Unit>? = null
     private var writer: Job? = null
     private var sessionId: Long? = null
+    private var running = false
+    private var demoJob: Job? = null
 
     @Volatile private var lastHeartRate: Int? = null
     @Volatile private var lastHeartRateAt = 0L
@@ -58,8 +63,9 @@ class RecorderService : Service() {
     }
 
     private fun begin() {
-        if (machine != null) return
+        if (running) return
         val settings = container.settings.value
+        val demo = settings.demoActive
         val machineAddress = settings.machineAddress
         try {
             ServiceCompat.startForeground(
@@ -73,7 +79,7 @@ class RecorderService : Service() {
             stopSelf()
             return
         }
-        if (machineAddress == null) {
+        if (machineAddress == null && !demo) {
             container.recorder.value = RecorderState(error = "No hay máquina elegida")
             ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE)
             stopSelf()
@@ -81,7 +87,9 @@ class RecorderService : Service() {
         }
         val log = container.eventLog
         val dao = container.dao
-        val machineName = settings.machineName ?: machineAddress
+        val machineName = settings.machineName ?: machineAddress ?: DemoWorkout.NAME
+        val sessionMachineName = if (demo) DemoWorkout.NAME else settings.machineName
+        running = true
         container.recorder.value = RecorderState(recording = true)
         sessionId = null
         lastHeartRate = null
@@ -101,7 +109,7 @@ class RecorderService : Service() {
             container.recorder.update { it.copy(sample = sample) }
             queue.trySend {
                 val id = sessionId ?: dao.insertSession(
-                    SessionEntity(startedAtMs = now, endedAtMs = now, machineName = settings.machineName),
+                    SessionEntity(startedAtMs = now, endedAtMs = now, machineName = sessionMachineName),
                 ).also { sessionId = it }
                 dao.insertSample(
                     SampleEntity(
@@ -119,6 +127,25 @@ class RecorderService : Service() {
                     ),
                 )
             }
+        }
+
+        if (demo || machineAddress == null) {
+            log.add(DemoWorkout.NAME, "Sesión simulada iniciada")
+            container.recorder.update { it.copy(machineConnected = true, heartRateConnected = true) }
+            val generator = DemoWorkout()
+            demoJob = scope.launch {
+                while (isActive) {
+                    delay(1000)
+                    val point = generator.next()
+                    lastHeartRate = point.heartRate
+                    lastHeartRateAt = SystemClock.elapsedRealtime()
+                    container.recorder.update {
+                        it.copy(heartRate = point.heartRate, heartRateAtMs = lastHeartRateAt)
+                    }
+                    record(point.sample)
+                }
+            }
+            return
         }
 
         machine = GattNotifyClient(
@@ -197,6 +224,9 @@ class RecorderService : Service() {
     }
 
     private fun release() {
+        running = false
+        demoJob?.cancel()
+        demoJob = null
         machine?.stop()
         machine = null
         heartRateClient?.stop()

@@ -21,6 +21,9 @@ interface SessionDao {
     @Insert
     suspend fun insertSample(sample: SampleEntity)
 
+    @Insert
+    suspend fun insertSamples(samples: List<SampleEntity>)
+
     @Query("SELECT * FROM sessions WHERE finished = 1 ORDER BY startedAtMs DESC")
     fun sessions(): Flow<List<SessionEntity>>
 

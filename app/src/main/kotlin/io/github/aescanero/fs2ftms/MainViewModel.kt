@@ -12,6 +12,7 @@ import io.github.aescanero.fs2ftms.ble.central.ScanState
 import io.github.aescanero.fs2ftms.data.SampleEntity
 import io.github.aescanero.fs2ftms.data.SessionEntity
 import io.github.aescanero.fs2ftms.data.Sessions
+import io.github.aescanero.fs2ftms.protocol.DemoWorkout
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -49,6 +50,39 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun startRecording() = RecorderService.start(getApplication())
 
     fun stopRecording() = RecorderService.stop(getApplication())
+
+    fun setDemo(enabled: Boolean) = container.settings.update { it.copy(demo = enabled) }
+
+    /** Inserta de golpe una sesión simulada terminada, para revisar historial y detalle. */
+    fun createDemoSession(minutes: Int = 25) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val dao = container.dao
+            val seconds = minutes * 60
+            val end = System.currentTimeMillis()
+            val start = end - seconds * 1000L
+            val session = SessionEntity(startedAtMs = start, endedAtMs = end, machineName = DemoWorkout.NAME)
+            val id = dao.insertSession(session)
+            val generator = DemoWorkout()
+            val samples = List(seconds) { index ->
+                val point = generator.next()
+                SampleEntity(
+                    sessionId = id,
+                    timestampMs = start + (index + 1) * 1000L,
+                    elapsedSeconds = point.sample.elapsedSeconds,
+                    speedKmh = point.sample.speedKmh,
+                    cadence = point.sample.cadencePerMinute,
+                    distanceMeters = point.sample.distanceMeters,
+                    strideCount = point.sample.strideCount,
+                    powerWatts = point.sample.powerWatts,
+                    energyKcal = point.sample.energyKcal,
+                    resistance = point.sample.resistanceLevel,
+                    heartRate = point.heartRate,
+                )
+            }
+            dao.insertSamples(samples)
+            dao.updateSession(Sessions.summarize(session.copy(id = id), samples, end))
+        }
+    }
 
     fun setDebug(enabled: Boolean) = container.settings.update { it.copy(debug = enabled) }
 

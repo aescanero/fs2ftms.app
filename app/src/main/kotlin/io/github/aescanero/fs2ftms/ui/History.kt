@@ -44,6 +44,7 @@ import androidx.compose.ui.unit.dp
 import io.github.aescanero.fs2ftms.SessionDetail
 import io.github.aescanero.fs2ftms.data.SampleEntity
 import io.github.aescanero.fs2ftms.data.SessionEntity
+import io.github.aescanero.fs2ftms.protocol.DemoWorkout
 import io.github.aescanero.fs2ftms.protocol.HeartRateZone
 import io.github.aescanero.fs2ftms.protocol.HeartRateZones
 import java.text.SimpleDateFormat
@@ -71,6 +72,7 @@ internal fun HistoryList(sessions: List<SessionEntity>, onOpen: (Long) -> Unit) 
                         formatDistance(session.distanceMeters),
                         "${session.kcal} kcal",
                         session.averageHeartRate?.let { "$it ppm" },
+                        session.machineName?.takeIf { it == DemoWorkout.NAME },
                     ).joinToString("  ·  "),
                     style = MaterialTheme.typography.bodyMedium,
                 )
