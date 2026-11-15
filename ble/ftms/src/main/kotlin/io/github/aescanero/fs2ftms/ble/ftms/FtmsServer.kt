@@ -15,9 +15,13 @@ import android.bluetooth.le.AdvertiseCallback
 import android.bluetooth.le.AdvertiseData
 import android.bluetooth.le.AdvertiseSettings
 import android.bluetooth.le.BluetoothLeAdvertiser
+import android.content.BroadcastReceiver
 import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
 import android.os.ParcelUuid
 import android.os.SystemClock
+import androidx.core.content.ContextCompat
 import io.github.aescanero.fs2ftms.protocol.FtmsCodec
 import io.github.aescanero.fs2ftms.protocol.FtmsUuids
 import io.github.aescanero.fs2ftms.protocol.MachineType
@@ -30,6 +34,8 @@ data class FtmsServerConfig(
     val batteryService: Boolean = false,
     /** Imita a una máquina real de conexión única: deja de anunciarse mientras hay un cliente. */
     val pauseAdvertisingWhileConnected: Boolean = false,
+    /** Experimental: pide emparejar al cliente para que reconozca el dispositivo aunque cambie de dirección. */
+    val requestBonding: Boolean = false,
 )
 
 /**
@@ -95,12 +101,22 @@ class FtmsServer(
             pendingServices.add(buildDeviceInformationService())
             if (config.batteryService) pendingServices.add(buildBatteryService())
         }
+        if (config.requestBonding) {
+            ContextCompat.registerReceiver(
+                context,
+                bondReceiver,
+                IntentFilter(BluetoothDevice.ACTION_BOND_STATE_CHANGED),
+                ContextCompat.RECEIVER_EXPORTED,
+            )
+            bondReceiverRegistered = true
+        }
         telemetry.update { it.copy(running = true, startedAtMs = System.currentTimeMillis()) }
         telemetry.event(
             TelemetryType.SERVER,
             null,
             "Servidor abierto: ${config.machineType.label}, batería simulada=${config.batteryService}, " +
-                "pausa de anuncio al conectar=${config.pauseAdvertisingWhileConnected}",
+                "pausa de anuncio al conectar=${config.pauseAdvertisingWhileConnected}, " +
+                "emparejamiento=${config.requestBonding}",
         )
         val already = runCatching { manager.getConnectedDevices(BluetoothProfile.GATT) }.getOrNull().orEmpty()
         telemetry.event(
@@ -127,6 +143,10 @@ class FtmsServer(
             subscriptions.clear()
             connectedAt.clear()
         }
+        if (bondReceiverRegistered) {
+            runCatching { context.unregisterReceiver(bondReceiver) }
+            bondReceiverRegistered = false
+        }
         runCatching { leAdvertiser?.stopAdvertising(advertiseCallback) }
         runCatching { gattServer?.close() }
         telemetry.update { it.copy(running = false, advertising = false, connectedDevices = emptySet()) }
@@ -146,6 +166,43 @@ class FtmsServer(
             }
         }
         drain()
+    }
+
+    // ---- Emparejamiento (experimental) -----------------------------------------------------
+
+    private var bondReceiverRegistered = false
+
+    private val bondReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            val device = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE, BluetoothDevice::class.java)
+            val state = intent.getIntExtra(BluetoothDevice.EXTRA_BOND_STATE, BluetoothDevice.ERROR)
+            val previous = intent.getIntExtra(BluetoothDevice.EXTRA_PREVIOUS_BOND_STATE, BluetoothDevice.ERROR)
+            telemetry.event(
+                TelemetryType.CONNECTION,
+                device?.let { label(it) },
+                "Emparejamiento: ${bondName(previous)} → ${bondName(state)}",
+            )
+        }
+    }
+
+    private fun bondName(state: Int): String = when (state) {
+        BluetoothDevice.BOND_BONDED -> "emparejado"
+        BluetoothDevice.BOND_BONDING -> "emparejando"
+        BluetoothDevice.BOND_NONE -> "sin emparejar"
+        else -> "desconocido ($state)"
+    }
+
+    /** Se pide tras la primera suscripción, cuando el cliente ya ha aceptado el dispositivo. */
+    private fun requestBond(device: BluetoothDevice) {
+        if (!config.requestBonding) return
+        val state = runCatching { device.bondState }.getOrDefault(BluetoothDevice.BOND_NONE)
+        if (state != BluetoothDevice.BOND_NONE) return
+        val accepted = runCatching { device.createBond() }.getOrDefault(false)
+        telemetry.event(
+            TelemetryType.CONNECTION,
+            label(device),
+            if (accepted) "Solicitud de emparejamiento enviada" else "Solicitud de emparejamiento rechazada por Android",
+        )
     }
 
     // ---- Servicios -------------------------------------------------------------------------
@@ -505,6 +562,7 @@ class FtmsServer(
                 name,
                 "${if (enabled) "Suscribe" else "Cancela"} $characteristicName (CCCD ${value.toHex()})",
             )
+            if (enabled && uuid == dataCharacteristic.uuid) requestBond(device)
         }
 
         override fun onCharacteristicWriteRequest(

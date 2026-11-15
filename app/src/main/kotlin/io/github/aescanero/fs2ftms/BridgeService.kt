@@ -77,6 +77,7 @@ class BridgeService : Service() {
                 if (bridge) MachineType.INDOOR_BIKE else settings.machineType,
                 settings.batteryService,
                 settings.pauseAdvertisingWhileConnected,
+                settings.requestBonding,
             ),
             telemetry,
         )

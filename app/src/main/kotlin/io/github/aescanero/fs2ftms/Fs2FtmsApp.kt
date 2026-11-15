@@ -21,6 +21,7 @@ data class EmulatorSettings(
     val sourceAddress: String? = null,
     val sourceName: String? = null,
     val useBridge: Boolean = false,
+    val requestBonding: Boolean = false,
 )
 
 /** Estado compartido entre el servicio y la UI (sustituible por Hilt cuando crezca el grafo). */
@@ -34,6 +35,7 @@ class AppContainer(context: Context) {
             sourceAddress = prefs.getString("sourceAddress", null),
             sourceName = prefs.getString("sourceName", null),
             useBridge = prefs.getBoolean("useBridge", false),
+            requestBonding = prefs.getBoolean("requestBonding", false),
         ),
     )
 
@@ -44,6 +46,7 @@ class AppContainer(context: Context) {
                     .putString("sourceAddress", it.sourceAddress)
                     .putString("sourceName", it.sourceName)
                     .putBoolean("useBridge", it.useBridge)
+                    .putBoolean("requestBonding", it.requestBonding)
                     .apply()
             }
         }

@@ -41,6 +41,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun setPauseAdvertising(enabled: Boolean) =
         container.settings.update { it.copy(pauseAdvertisingWhileConnected = enabled) }
 
+    fun setRequestBonding(enabled: Boolean) = container.settings.update { it.copy(requestBonding = enabled) }
+
     fun setUseBridge(enabled: Boolean) = container.settings.update { it.copy(useBridge = enabled) }
 
     /** Guarda como origen del puente la máquina del último volcado. */
@@ -103,6 +105,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 "machineType" to current.machineType.name,
                 "batteryService" to current.batteryService,
                 "bridge" to current.useBridge,
+                "requestBonding" to current.requestBonding,
                 "source" to current.sourceName,
                 "pauseAdvertisingWhileConnected" to current.pauseAdvertisingWhileConnected,
                 "exportedAtMs" to System.currentTimeMillis(),

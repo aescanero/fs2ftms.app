@@ -89,6 +89,7 @@ fun AppScreen(
                     onPauseAdvertising = vm::setPauseAdvertising,
                     onCadence = vm::setCadence,
                     onUseBridge = vm::setUseBridge,
+                    onRequestBonding = vm::setRequestBonding,
                 )
                 1 -> if (hasPermissions) {
                     ScannerTab(
@@ -132,6 +133,7 @@ private fun EmulatorTab(
     onPauseAdvertising: (Boolean) -> Unit,
     onCadence: (Int) -> Unit,
     onUseBridge: (Boolean) -> Unit,
+    onRequestBonding: (Boolean) -> Unit,
 ) {
     Column(
         Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
@@ -194,6 +196,24 @@ private fun EmulatorTab(
                         },
                     )
                 }
+            }
+        }
+
+        Card(Modifier.fillMaxWidth()) {
+            Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("Emparejar con el reloj (experimental)", Modifier.weight(1f), fontWeight = FontWeight.Bold)
+                    Switch(
+                        checked = settings.requestBonding,
+                        enabled = !telemetry.running,
+                        onCheckedChange = onRequestBonding,
+                    )
+                }
+                Text(
+                    "Pide el emparejamiento cuando el reloj se suscribe, para que reconozca este " +
+                        "dispositivo aunque cambie su dirección. Acepta la solicitud si aparece aquí o en el reloj.",
+                    style = MaterialTheme.typography.bodySmall,
+                )
             }
         }
 
