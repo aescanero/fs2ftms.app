@@ -52,6 +52,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun setDebug(enabled: Boolean) = container.settings.update { it.copy(debug = enabled) }
 
+    fun setAge(age: Int?) = container.settings.update { it.copy(age = age?.takeIf { v -> v in 10..100 }) }
+
+    fun setMeasuredMaxHeartRate(bpm: Int?) =
+        container.settings.update { it.copy(measuredMaxHeartRate = bpm?.takeIf { v -> v in 100..230 }) }
+
     fun clearMachine() = container.settings.update { it.copy(machineAddress = null, machineName = null) }
 
     fun clearHeartRate() = container.settings.update { it.copy(heartRateAddress = null, heartRateName = null) }

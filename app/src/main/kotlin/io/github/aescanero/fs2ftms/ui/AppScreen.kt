@@ -4,14 +4,17 @@ import android.content.Intent
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -19,6 +22,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Tab
@@ -29,12 +33,14 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.aescanero.fs2ftms.DeviceSettings
@@ -44,6 +50,8 @@ import io.github.aescanero.fs2ftms.ble.central.DumpState
 import io.github.aescanero.fs2ftms.ble.central.LogEntry
 import io.github.aescanero.fs2ftms.ble.central.ScanEntry
 import io.github.aescanero.fs2ftms.ble.central.ScanState
+import io.github.aescanero.fs2ftms.protocol.HeartRateZone
+import io.github.aescanero.fs2ftms.protocol.HeartRateZones
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -119,7 +127,13 @@ fun AppScreen(
                 } else {
                     PermissionRequest(onRequestPermissions)
                 }
-                else -> SettingsTab(settings, vm.versionName) { vm.setDebug(it) }
+                else -> SettingsTab(
+                    settings = settings,
+                    versionName = vm.versionName,
+                    onDebug = { vm.setDebug(it) },
+                    onAge = { vm.setAge(it) },
+                    onMaxHeartRate = { vm.setMeasuredMaxHeartRate(it) },
+                )
             }
         }
     }
@@ -165,6 +179,18 @@ private fun WorkoutTab(
         }
 
         val sample = recorder.sample
+        val maxHeartRate = settings.maxHeartRate
+        val showGauge = heartRate != null && maxHeartRate != null
+        if (showGauge && maxHeartRate != null) {
+            Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                HeartRateGauge(recorder.heartRate, maxHeartRate, Modifier.widthIn(max = 300.dp).fillMaxWidth())
+            }
+        } else if (heartRate != null) {
+            Text(
+                "Indica tu edad o tu FC máxima en Ajustes para ver las zonas de pulso.",
+                style = MaterialTheme.typography.bodySmall,
+            )
+        }
         MetricRow(
             "Tiempo",
             sample?.let { formatDuration(it.elapsedSeconds) } ?: "—",
@@ -183,12 +209,21 @@ private fun WorkoutTab(
             "Resistencia",
             sample?.resistanceLevel?.let { "%.0f".format(it) } ?: "—",
         )
-        MetricRow(
-            "Pulso",
-            recorder.heartRate?.let { "$it ppm" } ?: "—",
-            "Calorías",
-            sample?.let { "${it.energyKcal} kcal" } ?: "—",
-        )
+        if (showGauge) {
+            MetricRow(
+                "Calorías",
+                sample?.let { "${it.energyKcal} kcal" } ?: "—",
+                "Zancadas",
+                sample?.let { "%.0f".format(it.strideCount) } ?: "—",
+            )
+        } else {
+            MetricRow(
+                "Pulso",
+                recorder.heartRate?.let { "$it ppm" } ?: "—",
+                "Calorías",
+                sample?.let { "${it.energyKcal} kcal" } ?: "—",
+            )
+        }
 
         if (recorder.recording && sample == null) {
             Text("Esperando datos: mueve la elíptica para empezar.", style = MaterialTheme.typography.bodySmall)
@@ -365,11 +400,61 @@ private fun ScanRow(entry: ScanEntry, onInspect: (String) -> Unit) {
 }
 
 @Composable
-private fun SettingsTab(settings: DeviceSettings, versionName: String, onDebug: (Boolean) -> Unit) {
+private fun SettingsTab(
+    settings: DeviceSettings,
+    versionName: String,
+    onDebug: (Boolean) -> Unit,
+    onAge: (Int?) -> Unit,
+    onMaxHeartRate: (Int?) -> Unit,
+) {
     Column(
         Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
+        Text("Zonas de pulso", style = MaterialTheme.typography.titleMedium)
+        var ageText by rememberSaveable { mutableStateOf(settings.age?.toString().orEmpty()) }
+        var maxText by rememberSaveable { mutableStateOf(settings.measuredMaxHeartRate?.toString().orEmpty()) }
+        OutlinedTextField(
+            value = ageText,
+            onValueChange = { text ->
+                ageText = text.filter(Char::isDigit).take(3)
+                onAge(ageText.toIntOrNull())
+            },
+            label = { Text("Edad") },
+            singleLine = true,
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+            modifier = Modifier.fillMaxWidth(),
+        )
+        OutlinedTextField(
+            value = maxText,
+            onValueChange = { text ->
+                maxText = text.filter(Char::isDigit).take(3)
+                onMaxHeartRate(maxText.toIntOrNull())
+            },
+            label = { Text("FC máxima medida (opcional)") },
+            singleLine = true,
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+            modifier = Modifier.fillMaxWidth(),
+        )
+        val max = settings.maxHeartRate
+        if (max == null) {
+            Text(
+                "Sin estos datos no se calculan las zonas. Con la edad se estima la máxima como 220 − edad.",
+                style = MaterialTheme.typography.bodySmall,
+            )
+        } else {
+            val zones = HeartRateZones(max)
+            val origin = if (settings.measuredMaxHeartRate != null) "medida" else "estimada: 220 − edad"
+            Text("FC máxima: $max ppm ($origin)", style = MaterialTheme.typography.bodyMedium)
+            HeartRateZone.entries.forEach { zone ->
+                Text(
+                    "Z${zone.number} ${zone.label}: ${zones.lowerBound(zone)}–${zones.upperBound(zone)} ppm",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = zoneColor(zone),
+                )
+            }
+        }
+        HorizontalDivider()
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
                 Text("Modo depuración", fontWeight = FontWeight.Bold)

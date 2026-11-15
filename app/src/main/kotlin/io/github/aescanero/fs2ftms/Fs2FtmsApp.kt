@@ -6,6 +6,7 @@ import io.github.aescanero.fs2ftms.ble.central.EventLog
 import io.github.aescanero.fs2ftms.ble.central.GattInspector
 import io.github.aescanero.fs2ftms.data.AppDatabase
 import io.github.aescanero.fs2ftms.data.Sessions
+import io.github.aescanero.fs2ftms.protocol.HeartRateZones
 import io.github.aescanero.fs2ftms.protocol.WorkoutSample
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -19,7 +20,13 @@ data class DeviceSettings(
     val heartRateAddress: String? = null,
     val heartRateName: String? = null,
     val debug: Boolean = false,
-)
+    val age: Int? = null,
+    /** FC máxima medida; si falta, se estima con la edad. */
+    val measuredMaxHeartRate: Int? = null,
+) {
+    val maxHeartRate: Int?
+        get() = measuredMaxHeartRate ?: age?.let { HeartRateZones.estimateMax(it) }
+}
 
 data class RecorderState(
     val recording: Boolean = false,
@@ -47,6 +54,8 @@ class AppContainer(context: Context) {
             heartRateAddress = prefs.getString("heartRateAddress", null),
             heartRateName = prefs.getString("heartRateName", null),
             debug = prefs.getBoolean("debug", false),
+            age = prefs.getInt("age", 0).takeIf { it > 0 },
+            measuredMaxHeartRate = prefs.getInt("measuredMaxHeartRate", 0).takeIf { it > 0 },
         ),
     )
 
@@ -59,6 +68,8 @@ class AppContainer(context: Context) {
                     .putString("heartRateAddress", it.heartRateAddress)
                     .putString("heartRateName", it.heartRateName)
                     .putBoolean("debug", it.debug)
+                    .putInt("age", it.age ?: 0)
+                    .putInt("measuredMaxHeartRate", it.measuredMaxHeartRate ?: 0)
                     .apply()
             }
         }
