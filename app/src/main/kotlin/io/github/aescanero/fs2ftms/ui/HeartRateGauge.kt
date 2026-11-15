@@ -1,5 +1,7 @@
 package io.github.aescanero.fs2ftms.ui
 
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -9,6 +11,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -16,6 +19,8 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -46,7 +51,20 @@ internal fun HeartRateGauge(bpm: Int?, maxHeartRate: Int, modifier: Modifier = M
     val zones = HeartRateZones(maxHeartRate)
     val current = bpm?.let { zones.zoneOf(it) }
     val markerColor = MaterialTheme.colorScheme.onSurface
-    Box(modifier.aspectRatio(1f), contentAlignment = Alignment.Center) {
+    val fraction by animateFloatAsState(
+        targetValue = bpm?.let { zones.fraction(it) } ?: 0f,
+        animationSpec = tween(400),
+        label = "pulso",
+    )
+    val description = when {
+        bpm == null -> "Sin pulso"
+        current == null -> "Pulso $bpm pulsaciones por minuto, por debajo de la zona 1"
+        else -> "Pulso $bpm pulsaciones por minuto, zona ${current.number} ${current.label}"
+    }
+    Box(
+        modifier.aspectRatio(1f).semantics { contentDescription = description },
+        contentAlignment = Alignment.Center,
+    ) {
         Canvas(Modifier.fillMaxSize().padding(12.dp)) {
             val stroke = size.minDimension * 0.09f
             val diameter = size.minDimension - stroke
@@ -66,7 +84,7 @@ internal fun HeartRateGauge(bpm: Int?, maxHeartRate: Int, modifier: Modifier = M
                 )
             }
             if (bpm != null) {
-                val angle = Math.toRadians((START_ANGLE + SWEEP_ANGLE * zones.fraction(bpm)).toDouble())
+                val angle = Math.toRadians((START_ANGLE + SWEEP_ANGLE * fraction).toDouble())
                 val radius = diameter / 2f
                 val center = Offset(size.width / 2f, size.height / 2f)
                 val position = Offset(

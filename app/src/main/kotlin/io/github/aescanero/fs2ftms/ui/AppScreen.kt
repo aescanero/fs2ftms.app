@@ -29,7 +29,6 @@ import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -77,7 +76,7 @@ fun AppScreen(
 
     BackHandler(enabled = tab == 1 && detail != null) { vm.closeSession() }
 
-    Scaffold(topBar = { TopAppBar(title = { Text("fs2ftms") }) }) { padding ->
+    Scaffold { padding ->
         Column(Modifier.padding(padding).fillMaxSize()) {
             TabRow(selectedTabIndex = tab) {
                 tabs.forEachIndexed { index, title ->
@@ -140,125 +139,10 @@ fun AppScreen(
 }
 
 @Composable
-private fun PermissionRequest(onRequestPermissions: () -> Unit) {
+internal fun PermissionRequest(onRequestPermissions: () -> Unit) {
     Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text("Faltan los permisos de Bluetooth (dispositivos cercanos).")
         Button(onClick = onRequestPermissions) { Text("Conceder permisos") }
-    }
-}
-
-@Composable
-private fun WorkoutTab(
-    recorder: RecorderState,
-    settings: DeviceSettings,
-    hasPermissions: Boolean,
-    onRequestPermissions: () -> Unit,
-    onStart: () -> Unit,
-    onStop: () -> Unit,
-) {
-    Column(
-        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        val machine = settings.machineName ?: settings.machineAddress
-        val heartRate = settings.heartRateName ?: settings.heartRateAddress
-        Card(Modifier.fillMaxWidth()) {
-            Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text("Elíptica: " + deviceStatus(machine, recorder.recording, recorder.machineConnected))
-                Text("Pulso: " + deviceStatus(heartRate, recorder.recording, recorder.heartRateConnected))
-            }
-        }
-        recorder.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-
-        when {
-            !hasPermissions -> PermissionRequest(onRequestPermissions)
-            recorder.recording ->
-                OutlinedButton(onClick = onStop, modifier = Modifier.fillMaxWidth()) { Text("Finalizar y guardar") }
-            machine == null -> Text("Elige la elíptica en la pestaña Dispositivos para poder grabar.")
-            else -> Button(onClick = onStart, modifier = Modifier.fillMaxWidth()) { Text("Iniciar sesión") }
-        }
-
-        val sample = recorder.sample
-        val maxHeartRate = settings.maxHeartRate
-        val showGauge = heartRate != null && maxHeartRate != null
-        if (showGauge && maxHeartRate != null) {
-            Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                HeartRateGauge(recorder.heartRate, maxHeartRate, Modifier.widthIn(max = 300.dp).fillMaxWidth())
-            }
-        } else if (heartRate != null) {
-            Text(
-                "Indica tu edad o tu FC máxima en Ajustes para ver las zonas de pulso.",
-                style = MaterialTheme.typography.bodySmall,
-            )
-        }
-        MetricRow(
-            "Tiempo",
-            sample?.let { formatDuration(it.elapsedSeconds) } ?: "—",
-            "Distancia",
-            sample?.let { formatDistance(it.distanceMeters) } ?: "—",
-        )
-        MetricRow(
-            "Cadencia",
-            sample?.let { "${it.cadencePerMinute} /min" } ?: "—",
-            "Velocidad",
-            sample?.let { "%.1f km/h".format(it.speedKmh) } ?: "—",
-        )
-        MetricRow(
-            "Potencia",
-            sample?.let { "${it.powerWatts} W" } ?: "—",
-            "Resistencia",
-            sample?.resistanceLevel?.let { "%.0f".format(it) } ?: "—",
-        )
-        if (showGauge) {
-            MetricRow(
-                "Calorías",
-                sample?.let { "${it.energyKcal} kcal" } ?: "—",
-                "Zancadas",
-                sample?.let { "%.0f".format(it.strideCount) } ?: "—",
-            )
-        } else {
-            MetricRow(
-                "Pulso",
-                recorder.heartRate?.let { "$it ppm" } ?: "—",
-                "Calorías",
-                sample?.let { "${it.energyKcal} kcal" } ?: "—",
-            )
-        }
-
-        if (recorder.recording && sample == null) {
-            Text("Esperando datos: mueve la elíptica para empezar.", style = MaterialTheme.typography.bodySmall)
-        }
-        if (recorder.recording && heartRate != null && !recorder.heartRateConnected) {
-            Text(
-                "Para recibir el pulso, inicia el entrenamiento en el reloj con la emisión de pulso activada.",
-                style = MaterialTheme.typography.bodySmall,
-            )
-        }
-    }
-}
-
-private fun deviceStatus(name: String?, recording: Boolean, connected: Boolean): String = when {
-    name == null -> "sin elegir"
-    !recording -> name
-    connected -> "$name · conectado"
-    else -> "$name · buscando…"
-}
-
-@Composable
-private fun MetricRow(labelA: String, valueA: String, labelB: String, valueB: String) {
-    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        Metric(labelA, valueA, Modifier.weight(1f))
-        Metric(labelB, valueB, Modifier.weight(1f))
-    }
-}
-
-@Composable
-private fun Metric(label: String, value: String, modifier: Modifier = Modifier) {
-    Card(modifier) {
-        Column(Modifier.padding(12.dp)) {
-            Text(label, style = MaterialTheme.typography.labelMedium)
-            Text(value, style = MaterialTheme.typography.headlineSmall)
-        }
     }
 }
 
