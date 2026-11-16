@@ -115,8 +115,8 @@ class RecorderService : Service() {
         fun record(raw: WorkoutSample) {
             // En pausa se descartan las muestras; al reanudar, el acumulador continúa donde estaba.
             if (paused) return
-            val sample = totals.add(raw)
             val now = System.currentTimeMillis()
+            val sample = totals.add(raw, now)
             val heartRate = lastHeartRate?.takeIf { SystemClock.elapsedRealtime() - lastHeartRateAt < HEART_RATE_MAX_AGE_MS }
             container.recorder.update { it.copy(sample = sample) }
             queue.trySend {

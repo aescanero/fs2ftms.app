@@ -103,6 +103,19 @@ class AppContainer(context: Context) {
                     .apply()
             }
         }
+        // Reparación única de sesiones grabadas con el salto inicial de contadores (ver SessionAccumulator).
+        if (!prefs.getBoolean(REPAIR_JUMPS_DONE, false)) {
+            scope.launch(Dispatchers.IO) {
+                dao.finishedSessions().forEach { session ->
+                    val fixed = Sessions.removeImpossibleJumps(dao.samples(session.id)) ?: return@forEach
+                    dao.updateSamples(fixed)
+                    dao.updateSession(
+                        Sessions.summarize(session, fixed, session.endedAtMs, settings.value.estimateKcal(fixed)),
+                    )
+                }
+                prefs.edit().putBoolean(REPAIR_JUMPS_DONE, true).apply()
+            }
+        }
         // Sesiones que quedaron abiertas si el sistema cerró la app: se cierran con lo grabado.
         scope.launch(Dispatchers.IO) {
             dao.unfinished().forEach { session ->
@@ -123,6 +136,8 @@ class AppContainer(context: Context) {
         }
     }
 }
+
+private const val REPAIR_JUMPS_DONE = "repairJumpsV1"
 
 class Fs2FtmsApp : Application() {
     lateinit var container: AppContainer

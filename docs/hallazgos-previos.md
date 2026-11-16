@@ -45,3 +45,13 @@
   - `02 43 01` + tiempo (u16) + distancia (u16) + energía×10 (u16) + contador (u16) + XOR + `03`.
 - Otros servicios: `59554c55-…` "MRK-HR" (entrada de pulso) y OTA Telink (`00010203-…1912`): no tocar.
 - El Active 3 se suscribe solo a 0x2AD2 cuando el servidor se anuncia como bicicleta; rechaza Cross Trainer.
+
+## Primera sesión real (16-11-2026, 40 min, v0.1.21)
+- Muestreo estable: una muestra cada 0,8 s (2819 en 2262 s), sin huecos; pulso del reloj en el 100 % de las muestras.
+- La máquina actualiza sus valores a 1 Hz: una de cada cinco muestras repite la anterior.
+- **Salto inicial:** las dos primeras muestras traen contadores a cero y la tercera salta a los reales
+  (142 s, 353 m, 6 kcal, 33 zancadas acumulados antes de grabar). Corregido en `SessionAccumulator`
+  comparando el avance del tiempo de la máquina con el reloj; reparación única de lo ya guardado.
+- Velocidad = cadencia × 0,317 (constante): la distancia es virtual y no depende de la resistencia.
+- La cadencia cuenta pasos; una zancada son dos pasos (zancadas ≈ integral de cadencia / 2).
+- Calorías de la máquina: 226 kcal para 130 kJ de trabajo mecánico (rendimiento implícito ≈ 14 %).

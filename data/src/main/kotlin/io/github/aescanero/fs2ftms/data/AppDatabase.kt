@@ -29,6 +29,12 @@ interface SessionDao {
     @Query("SELECT * FROM sessions WHERE finished = 1 ORDER BY startedAtMs DESC")
     fun sessions(): Flow<List<SessionEntity>>
 
+    @Query("SELECT * FROM sessions WHERE finished = 1")
+    suspend fun finishedSessions(): List<SessionEntity>
+
+    @Update
+    suspend fun updateSamples(samples: List<SampleEntity>)
+
     @Query("SELECT * FROM sessions WHERE finished = 0")
     suspend fun unfinished(): List<SessionEntity>
 
