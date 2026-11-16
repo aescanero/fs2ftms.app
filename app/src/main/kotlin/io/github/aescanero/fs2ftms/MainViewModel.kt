@@ -51,6 +51,23 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun stopRecording() = RecorderService.stop(getApplication())
 
+    fun pauseRecording() = RecorderService.setPaused(getApplication(), true)
+
+    fun resumeRecording() = RecorderService.setPaused(getApplication(), false)
+
+    fun setWeight(kg: Int?) = container.settings.update { it.copy(weightKg = kg?.takeIf { v -> v in 30..250 }) }
+
+    fun setMale(male: Boolean?) = container.settings.update { it.copy(male = male) }
+
+    /** Guarda (o borra, con null) la corrección manual de calorías de la sesión abierta. */
+    fun setManualKcal(kcal: Int?) {
+        val id = _detail.value?.session?.id ?: return
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) { container.dao.setManualKcal(id, kcal?.takeIf { it in 0..20000 }) }
+            openSession(id)
+        }
+    }
+
     fun setDemo(enabled: Boolean) = container.settings.update { it.copy(demo = enabled) }
 
     /** Inserta de golpe una sesión simulada terminada, para revisar historial y detalle. */
@@ -80,7 +97,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 )
             }
             dao.insertSamples(samples)
-            dao.updateSession(Sessions.summarize(session.copy(id = id), samples, end))
+            dao.updateSession(
+                Sessions.summarize(session.copy(id = id), samples, end, container.settings.value.estimateKcal(samples)),
+            )
         }
     }
 

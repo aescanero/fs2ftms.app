@@ -104,6 +104,8 @@ fun AppScreen(
                 onRequestPermissions = onRequestPermissions,
                 onStart = { vm.startRecording() },
                 onStop = { vm.stopRecording() },
+                onPause = { vm.pauseRecording() },
+                onResume = { vm.resumeRecording() },
             )
             1 -> {
                 val current = detail
@@ -114,6 +116,7 @@ fun AppScreen(
                         onBack = { vm.closeSession() },
                         onExport = { onShare(vm.exportSessionIntent()) },
                         onDelete = { vm.deleteSession(current.session.id) },
+                        onSetManualKcal = { vm.setManualKcal(it) },
                     )
                 } else {
                     HistoryList(sessions, onOpen = { vm.openSession(it) }, onGoToWorkout = { tab = 0 })
@@ -148,6 +151,8 @@ fun AppScreen(
                 onCreateDemoSession = { vm.createDemoSession() },
                 onAge = { vm.setAge(it) },
                 onMaxHeartRate = { vm.setMeasuredMaxHeartRate(it) },
+                onWeight = { vm.setWeight(it) },
+                onMale = { vm.setMale(it) },
             )
         }
     }

@@ -5,7 +5,12 @@ import org.json.JSONObject
 
 object Sessions {
     /** Calcula los totales de la sesión a partir de sus muestras. */
-    fun summarize(session: SessionEntity, samples: List<SampleEntity>, endedAtMs: Long): SessionEntity {
+    fun summarize(
+        session: SessionEntity,
+        samples: List<SampleEntity>,
+        endedAtMs: Long,
+        estimatedKcal: Int? = null,
+    ): SessionEntity {
         val last = samples.lastOrNull() ?: return session.copy(endedAtMs = endedAtMs, finished = true)
         val moving = samples.filter { it.cadence > 0 }
         val heartRates = samples.mapNotNull { it.heartRate }
@@ -15,6 +20,7 @@ object Sessions {
             durationSeconds = last.elapsedSeconds,
             distanceMeters = last.distanceMeters,
             machineKcal = last.energyKcal,
+            estimatedKcal = estimatedKcal,
             strideCount = last.strideCount,
             averageCadence = if (moving.isEmpty()) 0 else moving.map { it.cadence }.average().toInt(),
             averagePowerWatts = if (moving.isEmpty()) 0 else moving.map { it.powerWatts }.average().toInt(),
@@ -37,6 +43,7 @@ object Sessions {
             .put("distanceMeters", session.distanceMeters)
             .put("machineKcal", session.machineKcal)
             .putNullable("manualKcal", session.manualKcal)
+            .putNullable("estimatedKcal", session.estimatedKcal)
             .put("averageCadence", session.averageCadence)
             .put("averagePowerWatts", session.averagePowerWatts)
             .put("averageSpeedKmh", session.averageSpeedKmh)

@@ -5,7 +5,9 @@ import android.content.Context
 import io.github.aescanero.fs2ftms.ble.central.EventLog
 import io.github.aescanero.fs2ftms.ble.central.GattInspector
 import io.github.aescanero.fs2ftms.data.AppDatabase
+import io.github.aescanero.fs2ftms.data.SampleEntity
 import io.github.aescanero.fs2ftms.data.Sessions
+import io.github.aescanero.fs2ftms.protocol.CalorieEstimator
 import io.github.aescanero.fs2ftms.protocol.HeartRateZones
 import io.github.aescanero.fs2ftms.protocol.WorkoutSample
 import kotlinx.coroutines.CoroutineScope
@@ -13,6 +15,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
+import kotlin.math.roundToInt
 
 data class DeviceSettings(
     val machineAddress: String? = null,
@@ -25,7 +28,17 @@ data class DeviceSettings(
     val age: Int? = null,
     /** FC máxima medida; si falta, se estima con la edad. */
     val measuredMaxHeartRate: Int? = null,
+    val weightKg: Int? = null,
+    /** Sexo para la fórmula de calorías: true hombre, false mujer, null sin indicar. */
+    val male: Boolean? = null,
 ) {
+    /** Estimador de calorías por pulso, disponible cuando hay edad, peso y sexo. */
+    val calorieEstimator: CalorieEstimator?
+        get() = if (age != null && weightKg != null && male != null) CalorieEstimator(age, weightKg, male) else null
+
+    fun estimateKcal(samples: List<SampleEntity>): Int? =
+        calorieEstimator?.total(samples.map { it.elapsedSeconds to it.heartRate })?.roundToInt()
+
     val demoActive: Boolean get() = debug && demo
 
     val maxHeartRate: Int?
@@ -40,6 +53,7 @@ data class RecorderState(
     val heartRate: Int? = null,
     /** Instante (SystemClock.elapsedRealtime) de la última lectura de pulso. */
     val heartRateAtMs: Long? = null,
+    val paused: Boolean = false,
     val error: String? = null,
 )
 
@@ -63,6 +77,12 @@ class AppContainer(context: Context) {
             demo = prefs.getBoolean("demo", false),
             age = prefs.getInt("age", 0).takeIf { it > 0 },
             measuredMaxHeartRate = prefs.getInt("measuredMaxHeartRate", 0).takeIf { it > 0 },
+            weightKg = prefs.getInt("weightKg", 0).takeIf { it > 0 },
+            male = when (prefs.getInt("sex", 0)) {
+                1 -> true
+                2 -> false
+                else -> null
+            },
         ),
     )
 
@@ -78,6 +98,8 @@ class AppContainer(context: Context) {
                     .putBoolean("demo", it.demo)
                     .putInt("age", it.age ?: 0)
                     .putInt("measuredMaxHeartRate", it.measuredMaxHeartRate ?: 0)
+                    .putInt("weightKg", it.weightKg ?: 0)
+                    .putInt("sex", when (it.male) { true -> 1; false -> 2; null -> 0 })
                     .apply()
             }
         }
@@ -88,7 +110,14 @@ class AppContainer(context: Context) {
                 if (samples.isEmpty()) {
                     dao.deleteSession(session.id)
                 } else {
-                    dao.updateSession(Sessions.summarize(session, samples, samples.last().timestampMs))
+                    dao.updateSession(
+                        Sessions.summarize(
+                            session,
+                            samples,
+                            samples.last().timestampMs,
+                            settings.value.estimateKcal(samples),
+                        ),
+                    )
                 }
             }
         }

@@ -47,6 +47,9 @@ class RecorderService : Service() {
     private var writer: Job? = null
     private var sessionId: Long? = null
     private var running = false
+    private var accumulator: SessionAccumulator? = null
+
+    @Volatile private var paused = false
     private var demoJob: Job? = null
 
     @Volatile private var lastHeartRate: Int? = null
@@ -58,7 +61,12 @@ class RecorderService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        if (intent?.action == ACTION_STOP) finish() else begin()
+        when (intent?.action) {
+            ACTION_STOP -> finish()
+            ACTION_PAUSE -> setPaused(true)
+            ACTION_RESUME -> setPaused(false)
+            else -> begin()
+        }
         return START_NOT_STICKY
     }
 
@@ -101,9 +109,13 @@ class RecorderService : Service() {
         }
 
         val parser = CrossTrainerDataParser()
-        val accumulator = SessionAccumulator()
+        val totals = SessionAccumulator()
+        accumulator = totals
+        paused = false
         fun record(raw: WorkoutSample) {
-            val sample = accumulator.add(raw)
+            // En pausa se descartan las muestras; al reanudar, el acumulador continúa donde estaba.
+            if (paused) return
+            val sample = totals.add(raw)
             val now = System.currentTimeMillis()
             val heartRate = lastHeartRate?.takeIf { SystemClock.elapsedRealtime() - lastHeartRateAt < HEART_RATE_MAX_AGE_MS }
             container.recorder.update { it.copy(sample = sample) }
@@ -211,7 +223,14 @@ class RecorderService : Service() {
                         if (samples.isEmpty()) {
                             dao.deleteSession(id)
                         } else {
-                            dao.updateSession(Sessions.summarize(session, samples, System.currentTimeMillis()))
+                            dao.updateSession(
+                                Sessions.summarize(
+                                    session,
+                                    samples,
+                                    System.currentTimeMillis(),
+                                    container.settings.value.estimateKcal(samples),
+                                ),
+                            )
                         }
                     }
                 }
@@ -223,8 +242,18 @@ class RecorderService : Service() {
         stopSelf()
     }
 
+    private fun setPaused(value: Boolean) {
+        if (!running || paused == value) return
+        paused = value
+        if (!value) accumulator?.rebase()
+        container.recorder.update { it.copy(paused = value) }
+        container.eventLog.add("Grabación", if (value) "Sesión en pausa" else "Sesión reanudada")
+    }
+
     private fun release() {
         running = false
+        paused = false
+        accumulator = null
         demoJob?.cancel()
         demoJob = null
         machine?.stop()
@@ -273,11 +302,19 @@ class RecorderService : Service() {
         private const val HEART_RATE_MAX_AGE_MS = 5000L
         const val ACTION_START = "io.github.aescanero.fs2ftms.START"
         const val ACTION_STOP = "io.github.aescanero.fs2ftms.STOP"
+        const val ACTION_PAUSE = "io.github.aescanero.fs2ftms.PAUSE"
+        const val ACTION_RESUME = "io.github.aescanero.fs2ftms.RESUME"
 
         fun start(context: Context) {
             ContextCompat.startForegroundService(
                 context,
                 Intent(context, RecorderService::class.java).setAction(ACTION_START),
+            )
+        }
+
+        fun setPaused(context: Context, paused: Boolean) {
+            context.startService(
+                Intent(context, RecorderService::class.java).setAction(if (paused) ACTION_PAUSE else ACTION_RESUME),
             )
         }
 

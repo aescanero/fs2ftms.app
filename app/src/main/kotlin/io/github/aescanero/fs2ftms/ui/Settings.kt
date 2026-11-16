@@ -15,6 +15,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -45,6 +46,8 @@ internal fun SettingsTab(
     onCreateDemoSession: () -> Unit,
     onAge: (Int?) -> Unit,
     onMaxHeartRate: (Int?) -> Unit,
+    onWeight: (Int?) -> Unit,
+    onMale: (Boolean?) -> Unit,
 ) {
     BoxWithConstraints(Modifier.fillMaxSize()) {
         // En pantallas anchas el contenido se reparte en dos columnas de lectura cómoda.
@@ -55,6 +58,8 @@ internal fun SettingsTab(
             ) {
                 Column(Modifier.widthIn(max = 480.dp).weight(1f, fill = false), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     ZonesSection(settings, onAge, onMaxHeartRate)
+                    HorizontalDivider()
+                    CaloriesSection(settings, onWeight, onMale)
                 }
                 Column(Modifier.widthIn(max = 560.dp).weight(1f, fill = false), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     OptionsSection(settings, onDebug, onDemo, onCreateDemoSession)
@@ -68,6 +73,8 @@ internal fun SettingsTab(
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 ZonesSection(settings, onAge, onMaxHeartRate)
+                HorizontalDivider()
+                CaloriesSection(settings, onWeight, onMale)
                 HorizontalDivider()
                 OptionsSection(settings, onDebug, onDemo, onCreateDemoSession)
                 HorizontalDivider()
@@ -134,6 +141,39 @@ private fun ZonesSection(settings: DeviceSettings, onAge: (Int?) -> Unit, onMaxH
             }
         }
     }
+}
+
+@Composable
+private fun CaloriesSection(settings: DeviceSettings, onWeight: (Int?) -> Unit, onMale: (Boolean?) -> Unit) {
+    Text("Calorías por pulso", style = MaterialTheme.typography.titleMedium)
+    var weightText by rememberSaveable { mutableStateOf(settings.weightKg?.toString().orEmpty()) }
+    OutlinedTextField(
+        value = weightText,
+        onValueChange = { text ->
+            weightText = text.filter(Char::isDigit).take(3)
+            onWeight(weightText.toIntOrNull())
+        },
+        label = { Text("Peso") },
+        suffix = { Text("kg") },
+        singleLine = true,
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+        modifier = Modifier.width(160.dp),
+    )
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+        Text("Sexo (para la fórmula):", style = MaterialTheme.typography.bodyMedium)
+        FilterChip(selected = settings.male == true, onClick = { onMale(true) }, label = { Text("Hombre") })
+        FilterChip(selected = settings.male == false, onClick = { onMale(false) }, label = { Text("Mujer") })
+    }
+    Text(
+        if (settings.calorieEstimator != null) {
+            "Al finalizar cada sesión con pulso se calculan las calorías con la edad, el peso y el sexo " +
+                "(fórmula de Keytel). Es una aproximación; puedes corregirla a mano en cada sesión."
+        } else {
+            "Indica edad, peso y sexo para calcular las calorías a partir del pulso. Sin ellos se usa la " +
+                "cifra de la máquina."
+        },
+        style = MaterialTheme.typography.bodySmall,
+    )
 }
 
 @Composable

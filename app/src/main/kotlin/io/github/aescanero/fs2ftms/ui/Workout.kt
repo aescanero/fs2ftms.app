@@ -22,6 +22,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -66,6 +67,8 @@ internal fun WorkoutTab(
     onRequestPermissions: () -> Unit,
     onStart: () -> Unit,
     onStop: () -> Unit,
+    onPause: () -> Unit,
+    onResume: () -> Unit,
 ) {
     val view = LocalView.current
     DisposableEffect(recorder.recording) {
@@ -110,10 +113,21 @@ internal fun WorkoutTab(
 
         when {
             !hasPermissions -> PermissionRequest(onRequestPermissions)
-            recorder.recording -> FilledTonalButton(
-                onClick = { confirmFinish = true },
-                modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp),
-            ) { Text("Finalizar", style = MaterialTheme.typography.titleMedium) }
+            recorder.recording -> Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (recorder.paused) {
+                    Button(onClick = onResume, modifier = Modifier.weight(1f).heightIn(min = 56.dp)) {
+                        Text("Reanudar", style = MaterialTheme.typography.titleMedium)
+                    }
+                } else {
+                    FilledTonalButton(onClick = onPause, modifier = Modifier.weight(1f).heightIn(min = 56.dp)) {
+                        Text("Pausar", style = MaterialTheme.typography.titleMedium)
+                    }
+                }
+                OutlinedButton(
+                    onClick = { confirmFinish = true },
+                    modifier = Modifier.weight(1f).heightIn(min = 56.dp),
+                ) { Text("Finalizar", style = MaterialTheme.typography.titleMedium) }
+            }
             machine == null -> Text("Elige la elíptica en la pestaña Dispositivos para poder grabar.")
             else -> Button(
                 onClick = onStart,
@@ -184,8 +198,9 @@ private fun StatusStrip(recorder: RecorderState, machine: String?, heartRateSour
         }
         return
     }
-    val receiving = recorder.machineConnected && recorder.sample != null
+    val receiving = recorder.machineConnected && recorder.sample != null && !recorder.paused
     val status = when {
+        recorder.paused -> "En pausa"
         !recorder.machineConnected -> "Conectando con la elíptica…"
         recorder.sample == null -> "Esperando datos: mueve la elíptica"
         machine == DemoWorkout.NAME -> "Grabando · demostración"

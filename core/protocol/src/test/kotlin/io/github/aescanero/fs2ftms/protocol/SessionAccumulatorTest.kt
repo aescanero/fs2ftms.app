@@ -34,6 +34,23 @@ class SessionAccumulatorTest {
     }
 
     @Test
+    fun pauseDoesNotCountWhatTheMachineKeptCounting() {
+        val accumulator = SessionAccumulator()
+        accumulator.add(sample(100, 300, 5, 40.0))
+        accumulator.add(sample(110, 330, 6, 44.0))
+        accumulator.rebase()
+        val resumed = accumulator.add(sample(150, 500, 9, 60.0))
+        assertEquals(10, resumed.elapsedSeconds)
+        assertEquals(30, resumed.distanceMeters)
+        assertEquals(1, resumed.energyKcal)
+        val next = accumulator.add(sample(160, 530, 10, 64.0))
+        assertEquals(20, next.elapsedSeconds)
+        assertEquals(60, next.distanceMeters)
+        assertEquals(2, next.energyKcal)
+        assertEquals(8.0, next.strideCount, 0.001)
+    }
+
+    @Test
     fun heartRateFormats() {
         assertEquals(128, HeartRateParser.parse(byteArrayOf(0x00, 0x80.toByte())))
         assertEquals(200, HeartRateParser.parse(byteArrayOf(0x01, 0xC8.toByte(), 0x00)))

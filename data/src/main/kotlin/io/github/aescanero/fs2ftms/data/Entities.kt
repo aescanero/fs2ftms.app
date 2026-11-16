@@ -6,6 +6,8 @@ import androidx.room.Index
 import androidx.room.PrimaryKey
 
 /** Resumen de una sesión grabada. Los totales se recalculan al finalizarla. */
+enum class KcalSource { MANUAL, HEART_RATE, MACHINE }
+
 @Entity(tableName = "sessions")
 data class SessionEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
@@ -15,6 +17,8 @@ data class SessionEntity(
     val distanceMeters: Int = 0,
     val machineKcal: Int = 0,
     val manualKcal: Int? = null,
+    /** Estimación por pulso (edad, peso y sexo); null si faltan datos o no hubo pulso. */
+    val estimatedKcal: Int? = null,
     val averageCadence: Int = 0,
     val averagePowerWatts: Int = 0,
     val averageSpeedKmh: Double = 0.0,
@@ -25,8 +29,15 @@ data class SessionEntity(
     val machineName: String? = null,
     val finished: Boolean = false,
 ) {
-    /** Calorías a mostrar: la corrección manual manda sobre la cifra de la máquina. */
-    val kcal: Int get() = manualKcal ?: machineKcal
+    /** Calorías a mostrar: corrección manual, si no la estimación por pulso, si no la máquina. */
+    val kcal: Int get() = manualKcal ?: estimatedKcal ?: machineKcal
+
+    val kcalSource: KcalSource
+        get() = when {
+            manualKcal != null -> KcalSource.MANUAL
+            estimatedKcal != null -> KcalSource.HEART_RATE
+            else -> KcalSource.MACHINE
+        }
 }
 
 @Entity(

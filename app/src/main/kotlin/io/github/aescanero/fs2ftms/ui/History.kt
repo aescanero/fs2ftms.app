@@ -23,6 +23,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -38,6 +39,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -55,9 +57,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import io.github.aescanero.fs2ftms.SessionDetail
+import io.github.aescanero.fs2ftms.data.KcalSource
 import io.github.aescanero.fs2ftms.data.SampleEntity
 import io.github.aescanero.fs2ftms.data.SessionEntity
 import io.github.aescanero.fs2ftms.protocol.DemoWorkout
@@ -178,10 +182,12 @@ internal fun SessionDetailScreen(
     onBack: () -> Unit,
     onExport: () -> Unit,
     onDelete: () -> Unit,
+    onSetManualKcal: (Int?) -> Unit,
 ) {
     val session = detail.session
     val format = remember { dateFormat() }
     var confirmDelete by remember { mutableStateOf(false) }
+    var editKcal by remember { mutableStateOf(false) }
 
     Column(Modifier.fillMaxSize()) {
         Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -215,7 +221,7 @@ internal fun SessionDetailScreen(
                             Modifier.weight(1f).verticalScroll(rememberScrollState()),
                             verticalArrangement = Arrangement.spacedBy(8.dp),
                         ) {
-                            Summary(detail, maxHeartRate)
+                            Summary(detail, maxHeartRate) { editKcal = true }
                         }
                         ExportButton(onExport)
                     }
@@ -229,13 +235,43 @@ internal fun SessionDetailScreen(
                         Modifier.weight(1f).verticalScroll(rememberScrollState()),
                         verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
-                        Summary(detail, maxHeartRate)
+                        Summary(detail, maxHeartRate) { editKcal = true }
                         Charts(detail.samples, maxHeartRate, fill = false)
                     }
                     Box(Modifier.padding(top = 8.dp)) { ExportButton(onExport) }
                 }
             }
         }
+    }
+
+    if (editKcal) {
+        var text by remember { mutableStateOf(session.manualKcal?.toString().orEmpty()) }
+        AlertDialog(
+            onDismissRequest = { editKcal = false },
+            title = { Text("Corregir calorías") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("Indica las calorías de esta sesión. Déjalo vacío para volver al valor calculado.")
+                    OutlinedTextField(
+                        value = text,
+                        onValueChange = { text = it.filter(Char::isDigit).take(5) },
+                        label = { Text("Calorías") },
+                        suffix = { Text("kcal") },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        editKcal = false
+                        onSetManualKcal(text.toIntOrNull())
+                    },
+                ) { Text("Guardar") }
+            },
+            dismissButton = { TextButton(onClick = { editKcal = false }) { Text("Cancelar") } },
+        )
     }
 
     if (confirmDelete) {
@@ -268,14 +304,18 @@ private fun ExportButton(onExport: () -> Unit) {
 }
 
 @Composable
-private fun Summary(detail: SessionDetail, maxHeartRate: Int?) {
+private fun Summary(detail: SessionDetail, maxHeartRate: Int?, onEditKcal: () -> Unit) {
     val session = detail.session
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         KeyFigure("Tiempo", formatDuration(session.durationSeconds), Modifier.weight(1f))
         KeyFigure("Distancia", formatDistance(session.distanceMeters), Modifier.weight(1f))
     }
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        val kcalSource = if (session.manualKcal != null) "corregidas" else "máquina"
+        val kcalSource = when (session.kcalSource) {
+            KcalSource.MANUAL -> "corregidas"
+            KcalSource.HEART_RATE -> "por pulso"
+            KcalSource.MACHINE -> "máquina"
+        }
         KeyFigure("Calorías ($kcalSource)", "${session.kcal} kcal", Modifier.weight(1f))
         KeyFigure("Pulso medio", session.averageHeartRate?.let { "$it ppm" } ?: "—", Modifier.weight(1f))
     }
@@ -288,6 +328,27 @@ private fun Summary(detail: SessionDetail, maxHeartRate: Int?) {
             AverageRow("Potencia media", "${session.averagePowerWatts} W")
             session.averageResistance?.let { AverageRow("Resistencia media", "%.1f".format(it)) }
             AverageRow("Zancadas", "%.0f".format(session.strideCount))
+        }
+    }
+
+    Card(Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(horizontal = 12.dp, vertical = 4.dp)) {
+            AverageRow("Calorías según la máquina", "${session.machineKcal} kcal")
+            AverageRow(
+                "Calorías calculadas por pulso",
+                session.estimatedKcal?.let { "$it kcal" } ?: "sin datos",
+            )
+            session.manualKcal?.let { AverageRow("Corrección manual", "$it kcal") }
+            if (session.estimatedKcal == null) {
+                Text(
+                    "Para calcularlas hacen falta pulso en la sesión y edad, peso y sexo en Ajustes.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            TextButton(onClick = onEditKcal, modifier = Modifier.heightIn(min = 48.dp)) {
+                Text("Corregir calorías a mano")
+            }
         }
     }
 

@@ -18,9 +18,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -54,10 +56,9 @@ internal fun zoneColor(zone: HeartRateZone, dark: Boolean): Color = if (dark) {
 
 private const val START_ANGLE = 135f
 private const val SWEEP_ANGLE = 270f
-private const val GAP_ANGLE = 2f
 
 /**
- * Indicador circular del pulso: cinco arcos, uno por zona, con la zona actual resaltada y una
+ * Indicador circular del pulso: arco continuo con degradado por zonas, la zona actual resaltada y una
  * aguja en la posición exacta. Los textos del centro escalan con el diámetro, y la lectura no
  * depende solo del color (ppm, número y nombre de zona).
  */
@@ -99,17 +100,38 @@ internal fun HeartRateGauge(
             val topLeft = Offset((size.width - arcDiameter) / 2f, (size.height - arcDiameter) / 2f)
             val arcSize = Size(arcDiameter, arcDiameter)
             val perZone = SWEEP_ANGLE / HeartRateZone.entries.size
-            HeartRateZone.entries.forEachIndexed { index, zone ->
-                val active = zone == current
+            // Arco continuo con degradado entre zonas; encima, la zona actual en color pleno y más gruesa.
+            val circle = 360f
+            val stops = buildList {
+                add(0f to zoneColor(HeartRateZone.entries.first(), dark))
+                HeartRateZone.entries.forEachIndexed { index, zone ->
+                    add((index + 0.5f) * perZone / circle to zoneColor(zone, dark))
+                }
+                add(SWEEP_ANGLE / circle to zoneColor(HeartRateZone.entries.last(), dark))
+                add(1f to zoneColor(HeartRateZone.entries.last(), dark))
+            }.toTypedArray()
+            rotate(START_ANGLE) {
                 drawArc(
-                    color = zoneColor(zone, dark).copy(alpha = if (active) 1f else if (bpm == null) 0.8f else 0.65f),
-                    startAngle = START_ANGLE + index * perZone + GAP_ANGLE / 2f,
-                    sweepAngle = perZone - GAP_ANGLE,
+                    brush = Brush.sweepGradient(*stops, center = center),
+                    startAngle = 0f,
+                    sweepAngle = SWEEP_ANGLE,
                     useCenter = false,
                     topLeft = topLeft,
                     size = arcSize,
-                    style = Stroke(width = if (active) stroke * 1.5f else stroke, cap = StrokeCap.Butt),
+                    alpha = if (bpm == null) 0.85f else 0.55f,
+                    style = Stroke(width = stroke, cap = StrokeCap.Butt),
                 )
+                if (current != null) {
+                    drawArc(
+                        color = zoneColor(current, dark),
+                        startAngle = current.ordinal * perZone,
+                        sweepAngle = perZone,
+                        useCenter = false,
+                        topLeft = topLeft,
+                        size = arcSize,
+                        style = Stroke(width = stroke * 1.6f, cap = StrokeCap.Butt),
+                    )
+                }
             }
             if (bpm != null) {
                 val angle = Math.toRadians((START_ANGLE + SWEEP_ANGLE * fraction).toDouble())
