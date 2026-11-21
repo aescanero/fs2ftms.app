@@ -125,6 +125,45 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             if (params.isEmpty()) null else Comparison(params, values, live, week, month, profile.type)
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
+    private val _healthConnectStatus = MutableStateFlow(HealthConnectStatus.UNAVAILABLE)
+    val healthConnectStatus: StateFlow<HealthConnectStatus> = _healthConnectStatus.asStateFlow()
+
+    /** Sesiones pendientes de enviar a Health Connect (null mientras se calcula). */
+    private val _healthConnectPending = MutableStateFlow<Int?>(null)
+    val healthConnectPending: StateFlow<Int?> = _healthConnectPending.asStateFlow()
+
+    private val _healthConnectBusy = MutableStateFlow(false)
+    val healthConnectBusy: StateFlow<Boolean> = _healthConnectBusy.asStateFlow()
+
+    val healthConnectPermissions: Set<String> get() = container.healthConnect.permissions
+
+    fun refreshHealthConnect() {
+        viewModelScope.launch(Dispatchers.IO) {
+            _healthConnectStatus.value = container.healthConnect.status()
+            _healthConnectPending.value = container.dao.pendingHealthConnect(DemoWorkout.NAME).size
+        }
+    }
+
+    fun setHealthConnect(enabled: Boolean) = container.settings.update { it.copy(healthConnect = enabled) }
+
+    /** Envía a Health Connect todas las sesiones que aún no se han enviado. */
+    fun sendPendingToHealthConnect() {
+        if (_healthConnectBusy.value) return
+        _healthConnectBusy.value = true
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                container.dao.pendingHealthConnect(DemoWorkout.NAME).forEach { session ->
+                    if (container.healthConnect.write(session, container.dao.samples(session.id))) {
+                        container.dao.setHealthConnectAt(session.id, System.currentTimeMillis())
+                    }
+                }
+            } finally {
+                _healthConnectBusy.value = false
+                refreshHealthConnect()
+            }
+        }
+    }
+
     fun setCycle(enabled: Boolean) = container.settings.update { it.copy(cycle = enabled) }
 
     private val _detail = MutableStateFlow<SessionDetail?>(null)
@@ -150,7 +189,16 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun setManualKcal(kcal: Int?) {
         val id = _detail.value?.session?.id ?: return
         viewModelScope.launch {
-            withContext(Dispatchers.IO) { container.dao.setManualKcal(id, kcal?.takeIf { it in 0..20000 }) }
+            withContext(Dispatchers.IO) {
+                container.dao.setManualKcal(id, kcal?.takeIf { it in 0..20000 })
+                // Si la sesión ya estaba en Health Connect, se reenvía con las calorías corregidas.
+                val session = container.dao.session(id)
+                if (session?.healthConnectAtMs != null && container.settings.value.healthConnect) {
+                    if (container.healthConnect.write(session, container.dao.samples(id))) {
+                        container.dao.setHealthConnectAt(id, System.currentTimeMillis())
+                    }
+                }
+            }
             openSession(id)
         }
     }

@@ -15,6 +15,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.compose.material3.Button
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
@@ -23,6 +25,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -34,7 +37,9 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.health.connect.client.PermissionController
 import io.github.aescanero.fs2ftms.DeviceSettings
+import io.github.aescanero.fs2ftms.HealthConnectStatus
 import io.github.aescanero.fs2ftms.R
 import io.github.aescanero.fs2ftms.protocol.HeartRateZone
 import io.github.aescanero.fs2ftms.protocol.HeartRateZones
@@ -50,6 +55,10 @@ internal fun SettingsTab(
     onMaxHeartRate: (Int?) -> Unit,
     onWeight: (Int?) -> Unit,
     onMale: (Boolean?) -> Unit,
+    healthConnect: HealthConnectUi,
+    onHealthConnectToggle: (Boolean) -> Unit,
+    onHealthConnectSend: () -> Unit,
+    onHealthConnectRefresh: () -> Unit,
 ) {
     BoxWithConstraints(Modifier.fillMaxSize()) {
         // En pantallas anchas el contenido se reparte en dos columnas de lectura cómoda.
@@ -64,6 +73,8 @@ internal fun SettingsTab(
                     CaloriesSection(settings, onWeight, onMale)
                 }
                 Column(Modifier.widthIn(max = 560.dp).weight(1f, fill = false), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    HealthConnectSection(healthConnect, onHealthConnectToggle, onHealthConnectSend, onHealthConnectRefresh)
+                    HorizontalDivider()
                     OptionsSection(settings, onDebug, onDemo, onCreateDemoSession)
                     HorizontalDivider()
                     PrivacySection(versionName)
@@ -77,6 +88,8 @@ internal fun SettingsTab(
                 ZonesSection(settings, onAge, onMaxHeartRate)
                 HorizontalDivider()
                 CaloriesSection(settings, onWeight, onMale)
+                HorizontalDivider()
+                HealthConnectSection(healthConnect, onHealthConnectToggle, onHealthConnectSend, onHealthConnectRefresh)
                 HorizontalDivider()
                 OptionsSection(settings, onDebug, onDemo, onCreateDemoSession)
                 HorizontalDivider()
@@ -180,6 +193,56 @@ private fun CaloriesSection(settings: DeviceSettings, onWeight: (Int?) -> Unit, 
     )
 }
 
+/** Estado de Health Connect que necesita la pantalla de ajustes. */
+data class HealthConnectUi(
+    val status: HealthConnectStatus,
+    val enabled: Boolean,
+    val pending: Int?,
+    val busy: Boolean,
+    val permissions: Set<String>,
+)
+
+@Composable
+private fun HealthConnectSection(
+    state: HealthConnectUi,
+    onToggle: (Boolean) -> Unit,
+    onSend: () -> Unit,
+    onRefresh: () -> Unit,
+) {
+    LaunchedEffect(Unit) { onRefresh() }
+    val launcher = rememberLauncherForActivityResult(PermissionController.createRequestPermissionResultContract()) {
+        onRefresh()
+    }
+    Text(stringResource(R.string.hc_title), style = MaterialTheme.typography.titleMedium)
+    when (state.status) {
+        HealthConnectStatus.UNAVAILABLE -> Text(stringResource(R.string.hc_unavailable), style = MaterialTheme.typography.bodyMedium)
+        HealthConnectStatus.UPDATE_REQUIRED -> Text(stringResource(R.string.hc_update), style = MaterialTheme.typography.bodyMedium)
+        HealthConnectStatus.NOT_GRANTED -> {
+            Text(stringResource(R.string.hc_not_granted), style = MaterialTheme.typography.bodyMedium)
+            Button(onClick = { launcher.launch(state.permissions) }, modifier = Modifier.heightIn(min = 48.dp)) {
+                Text(stringResource(R.string.hc_grant))
+            }
+        }
+        HealthConnectStatus.GRANTED -> {
+            SwitchRow(
+                title = stringResource(R.string.hc_auto),
+                description = stringResource(R.string.hc_auto_help),
+                checked = state.enabled,
+                onChange = onToggle,
+            )
+            val pending = state.pending
+            when {
+                state.busy -> Text(stringResource(R.string.hc_sending), style = MaterialTheme.typography.bodyMedium)
+                pending != null && pending > 0 -> OutlinedButton(
+                    onClick = onSend,
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                ) { Text(stringResource(R.string.hc_send_pending, pending)) }
+                pending == 0 -> Text(stringResource(R.string.hc_all_sent), style = MaterialTheme.typography.bodySmall)
+            }
+        }
+    }
+}
+
 @Composable
 private fun OptionsSection(
     settings: DeviceSettings,
@@ -226,7 +289,7 @@ private fun SwitchRow(title: String, description: String, checked: Boolean, onCh
 }
 
 @Composable
-private fun PrivacySection(versionName: String) {
+internal fun PrivacySection(versionName: String) {
     Text(stringResource(R.string.privacy_title), style = MaterialTheme.typography.titleMedium)
     Text(
         stringResource(R.string.privacy_local),
@@ -240,5 +303,6 @@ private fun PrivacySection(versionName: String) {
         stringResource(R.string.privacy_storage),
         style = MaterialTheme.typography.bodyMedium,
     )
+    Text(stringResource(R.string.privacy_health_connect), style = MaterialTheme.typography.bodyMedium)
     Text(stringResource(R.string.settings_version, versionName), style = MaterialTheme.typography.bodySmall)
 }

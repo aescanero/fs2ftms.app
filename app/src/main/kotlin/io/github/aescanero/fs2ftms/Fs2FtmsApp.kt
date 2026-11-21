@@ -36,6 +36,8 @@ data class DeviceSettings(
     val male: Boolean? = null,
     /** Rotación automática de la comparativa de la pantalla de entreno. */
     val cycle: Boolean = true,
+    /** Escribir cada sesión en Health Connect al finalizarla. */
+    val healthConnect: Boolean = true,
 ) {
     /** Estimador de calorías por pulso, disponible cuando hay edad, peso y sexo. */
     val calorieEstimator: CalorieEstimator?
@@ -71,6 +73,7 @@ class AppContainer(context: Context) {
     val dao = database.sessionDao()
     val eventLog = EventLog()
     val inspector = GattInspector(context, scope)
+    val healthConnect = HealthConnectWriter(context)
     val recorder = MutableStateFlow(RecorderState())
 
     private val prefs = context.getSharedPreferences("settings", Context.MODE_PRIVATE)
@@ -87,6 +90,7 @@ class AppContainer(context: Context) {
             measuredMaxHeartRate = prefs.getInt("measuredMaxHeartRate", 0).takeIf { it > 0 },
             weightKg = prefs.getInt("weightKg", 0).takeIf { it > 0 },
             cycle = prefs.getBoolean("cycle", true),
+            healthConnect = prefs.getBoolean("healthConnect", true),
             male = when (prefs.getInt("sex", 0)) {
                 1 -> true
                 2 -> false
@@ -109,6 +113,7 @@ class AppContainer(context: Context) {
                     .putInt("measuredMaxHeartRate", it.measuredMaxHeartRate ?: 0)
                     .putInt("weightKg", it.weightKg ?: 0)
                     .putBoolean("cycle", it.cycle)
+                    .putBoolean("healthConnect", it.healthConnect)
                     .putInt("sex", when (it.male) { true -> 1; false -> 2; null -> 0 })
                     .apply()
             }

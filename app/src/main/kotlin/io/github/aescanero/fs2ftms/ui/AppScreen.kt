@@ -101,6 +101,9 @@ fun AppScreen(
     val dumpProfile by vm.dumpProfile.collectAsStateWithLifecycle()
     val comparison by vm.comparison.collectAsStateWithLifecycle()
     val summary by vm.historySummary.collectAsStateWithLifecycle()
+    val healthConnectStatus by vm.healthConnectStatus.collectAsStateWithLifecycle()
+    val healthConnectPending by vm.healthConnectPending.collectAsStateWithLifecycle()
+    val healthConnectBusy by vm.healthConnectBusy.collectAsStateWithLifecycle()
     var tab by rememberSaveable { mutableIntStateOf(0) }
 
     // Mientras se graba solo está disponible la pantalla de entreno: evita salir de ella por un toque.
@@ -173,6 +176,16 @@ fun AppScreen(
                 onMaxHeartRate = { vm.setMeasuredMaxHeartRate(it) },
                 onWeight = { vm.setWeight(it) },
                 onMale = { vm.setMale(it) },
+                healthConnect = HealthConnectUi(
+                    status = healthConnectStatus,
+                    enabled = settings.healthConnect,
+                    pending = healthConnectPending,
+                    busy = healthConnectBusy,
+                    permissions = vm.healthConnectPermissions,
+                ),
+                onHealthConnectToggle = { vm.setHealthConnect(it) },
+                onHealthConnectSend = { vm.sendPendingToHealthConnect() },
+                onHealthConnectRefresh = { vm.refreshHealthConnect() },
             )
         }
     }

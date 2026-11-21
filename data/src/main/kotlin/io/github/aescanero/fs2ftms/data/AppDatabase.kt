@@ -29,6 +29,15 @@ interface SessionDao {
     @Query("SELECT * FROM sessions WHERE finished = 1 ORDER BY startedAtMs DESC")
     fun sessions(): Flow<List<SessionEntity>>
 
+    @Query("UPDATE sessions SET healthConnectAtMs = :atMs WHERE id = :id")
+    suspend fun setHealthConnectAt(id: Long, atMs: Long?)
+
+    @Query(
+        "SELECT * FROM sessions WHERE finished = 1 AND healthConnectAtMs IS NULL " +
+            "AND (machineName IS NULL OR machineName != :demoName) ORDER BY startedAtMs",
+    )
+    suspend fun pendingHealthConnect(demoName: String): List<SessionEntity>
+
     @Query("UPDATE sessions SET machineType = :type WHERE machineType IS NULL")
     suspend fun fillMissingMachineType(type: String)
 
@@ -54,7 +63,7 @@ interface SessionDao {
     suspend fun deleteSession(id: Long)
 }
 
-@Database(entities = [SessionEntity::class, SampleEntity::class], version = 3, exportSchema = false)
+@Database(entities = [SessionEntity::class, SampleEntity::class], version = 4, exportSchema = false)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun sessionDao(): SessionDao
 
@@ -71,9 +80,15 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        private val MIGRATION_3_4 = object : Migration(3, 4) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE sessions ADD COLUMN healthConnectAtMs INTEGER")
+            }
+        }
+
         fun create(context: Context): AppDatabase =
             Room.databaseBuilder(context.applicationContext, AppDatabase::class.java, "fs2ftms.db")
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
                 .build()
     }
 }

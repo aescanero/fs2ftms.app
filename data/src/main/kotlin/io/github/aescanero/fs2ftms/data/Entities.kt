@@ -30,6 +30,8 @@ data class SessionEntity(
     /** Tipo FTMS de la máquina (MachineType.name); null en sesiones anteriores a los perfiles. */
     val machineType: String? = null,
     val finished: Boolean = false,
+    /** Momento en que se escribió en Health Connect; null si aún no se ha enviado. */
+    val healthConnectAtMs: Long? = null,
 ) {
     /** Calorías a mostrar: corrección manual, si no la estimación por pulso, si no la máquina. */
     val kcal: Int get() = manualKcal ?: estimatedKcal ?: machineKcal

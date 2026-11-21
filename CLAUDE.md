@@ -14,7 +14,10 @@ Sustituye a la app FitShow. Objetivo: histórico propio, dashboard, exportación
 
 ## Entregas
 1. Grabación de la sesión (máquina + pulso), histórico con detalle y exportación JSON. [hecho, sin validar en dispositivo]
-2. Escritura en Health Connect como entrenamiento de elíptica.
+2. Escritura en Health Connect (connect-client 1.1.0, solo escritura): sesión de ejercicio (elíptica o bici
+   estática), distancia, calorías activas y series de pulso, potencia y velocidad cada 5 s. clientRecordId
+   por sesión y versión creciente, así que reenviar actualiza. Automática al finalizar (opción en Ajustes) y
+   envío de pendientes. `PrivacyActivity` atiende la justificación de permisos. [sin validar en dispositivo]
 3. Dashboard: resumen de últimos 7 y 30 días y por meses en Historial; en Entreno, comparativa cíclica de
    cada parámetro (sesión en curso o última) frente a las medias de 7 y 30 días de la misma clase de máquina.
 4. Calorías: estimación por pulso (peso, edad, sexo) y corrección manual.

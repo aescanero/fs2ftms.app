@@ -283,14 +283,16 @@ class RecorderService : Service() {
                         if (samples.isEmpty()) {
                             dao.deleteSession(id)
                         } else {
-                            dao.updateSession(
-                                Sessions.summarize(
-                                    session,
-                                    samples,
-                                    System.currentTimeMillis(),
-                                    container.settings.value.estimateKcal(samples),
-                                ),
+                            val summary = Sessions.summarize(
+                                session,
+                                samples,
+                                System.currentTimeMillis(),
+                                container.settings.value.estimateKcal(samples),
                             )
+                            dao.updateSession(summary)
+                            if (container.settings.value.healthConnect && container.healthConnect.write(summary, samples)) {
+                                dao.setHealthConnectAt(id, System.currentTimeMillis())
+                            }
                         }
                     }
                 }

@@ -51,6 +51,16 @@
     <string name="gauge_percent">%1$d%% of %2$d</string>
     <string name="gauge_stale">Last reading %1$d s ago</string>
     <string name="gauge_zone">Z%1$d · %2$s</string>
+    <string name="hc_all_sent">All sessions are in Health Connect.</string>
+    <string name="hc_auto">Save each session when it ends</string>
+    <string name="hc_auto_help">Zepp also saves the watch workout, so Health Connect will show two sessions for each workout.</string>
+    <string name="hc_grant">Allow access</string>
+    <string name="hc_not_granted">Allow fs2ftms to save your sessions: exercise, distance, calories, heart rate, power and speed.</string>
+    <string name="hc_send_pending">Send pending sessions (%1$d)</string>
+    <string name="hc_sending">Sending…</string>
+    <string name="hc_title">Health Connect</string>
+    <string name="hc_unavailable">Health Connect is not available on this device.</string>
+    <string name="hc_update">Health Connect needs to be installed or updated from the Play Store.</string>
     <string name="history_avg_cadence">Average cadence</string>
     <string name="history_avg_heart_rate">Average heart rate</string>
     <string name="history_avg_heart_rate_value">Average heart rate %1$d bpm</string>
@@ -97,6 +107,7 @@
     <string name="permissions_grant">Grant permission</string>
     <string name="permissions_missing">Bluetooth permission (nearby devices) is missing.</string>
     <string name="privacy_bluetooth">It uses Bluetooth to find nearby devices and read the elliptical data and the heart rate broadcast by the watch. It does not use that data to obtain your location.</string>
+    <string name="privacy_health_connect">If you allow it, sessions are also saved to Health Connect on this device. fs2ftms only writes there; it does not read your health data.</string>
     <string name="privacy_local">fs2ftms runs entirely on this device. It has no Internet access, creates no accounts and sends no data to any server.</string>
     <string name="privacy_storage">Sessions (time, distance, cadence, power, resistance, calories and heart rate) and the data you enter for heart rate zones and calories are stored only on this device. They leave it only when you export a file and choose which app to share it with. You can delete each session from the history.</string>
     <string name="privacy_title">Privacy policy</string>
