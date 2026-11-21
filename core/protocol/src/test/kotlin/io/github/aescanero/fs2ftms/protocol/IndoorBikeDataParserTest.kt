@@ -1,6 +1,7 @@
 package io.github.aescanero.fs2ftms.protocol
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -22,6 +23,6 @@ class IndoorBikeDataParserTest {
     fun `pulso cero se trata como sin lectura`() {
         val parsed = IndoorBikeDataParser().accept(bytes(0x00, 0x02, 0xE8, 0x03, 0x00))!!
         assertNull(parsed.sample.heartRate)
-        assertTrue(Metric.HEART_RATE in parsed.present)
+        assertFalse(Metric.HEART_RATE in parsed.present)
     }
 }

@@ -59,8 +59,9 @@ class IndoorBikeDataParser : FtmsDataParser {
                 reader.u8()
             }
             if (has(9)) {
+                // La Merach incluye el campo siempre a 0: solo cuenta como métrica si hay lectura real.
                 heartRate = reader.u8().takeIf { it > 0 }
-                present += Metric.HEART_RATE
+                if (heartRate != null) present += Metric.HEART_RATE
             }
             if (has(10)) reader.u8()
             if (has(11)) {
