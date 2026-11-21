@@ -63,16 +63,22 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import io.github.aescanero.fs2ftms.R
+import io.github.aescanero.fs2ftms.HistorySummary
 import io.github.aescanero.fs2ftms.SessionDetail
 import io.github.aescanero.fs2ftms.data.KcalSource
+import io.github.aescanero.fs2ftms.data.PeriodStats
 import io.github.aescanero.fs2ftms.data.SampleEntity
 import io.github.aescanero.fs2ftms.data.SessionEntity
+import io.github.aescanero.fs2ftms.data.StatParam
 import io.github.aescanero.fs2ftms.protocol.DemoWorkout
 import io.github.aescanero.fs2ftms.protocol.HeartRateZone
 import io.github.aescanero.fs2ftms.protocol.HeartRateZones
 import java.text.SimpleDateFormat
+import java.time.YearMonth
+import java.time.format.DateTimeFormatter
 import java.util.Date
 import java.util.Locale
+import kotlin.math.roundToInt
 
 private fun dateFormat() = SimpleDateFormat("EEE d MMM yyyy, HH:mm", Locale.getDefault())
 
@@ -81,7 +87,12 @@ private fun belowZoneColor(dark: Boolean) = if (dark) Color(0xFF37474F) else Col
 // ---- Lista -------------------------------------------------------------------------------------
 
 @Composable
-internal fun HistoryList(sessions: List<SessionEntity>, onOpen: (Long) -> Unit, onGoToWorkout: () -> Unit) {
+internal fun HistoryList(
+    sessions: List<SessionEntity>,
+    summary: HistorySummary,
+    onOpen: (Long) -> Unit,
+    onGoToWorkout: () -> Unit,
+) {
     if (sessions.isEmpty()) {
         Column(
             Modifier.fillMaxSize().padding(24.dp),
@@ -111,6 +122,34 @@ internal fun HistoryList(sessions: List<SessionEntity>, onOpen: (Long) -> Unit, 
                     pluralStringResource(R.plurals.history_sessions, sessions.size, sessions.size),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+        item {
+            Row(
+                Modifier.widthIn(max = 720.dp).fillMaxWidth().padding(bottom = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                PeriodCard(stringResource(R.string.compare_week), summary.week, Modifier.weight(1f))
+                PeriodCard(stringResource(R.string.compare_month), summary.month, Modifier.weight(1f))
+            }
+        }
+        if (summary.monthly.isNotEmpty()) {
+            item {
+                Text(
+                    stringResource(R.string.history_by_month),
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.padding(top = 8.dp, bottom = 4.dp),
+                )
+            }
+            items(summary.monthly, key = { it.first.toString() }) { (month, stats) ->
+                MonthRow(month, stats)
+            }
+            item {
+                Text(
+                    stringResource(R.string.history_sessions_title),
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.padding(top = 16.dp, bottom = 4.dp),
                 )
             }
         }
@@ -160,6 +199,58 @@ private fun SessionRow(session: SessionEntity, date: String, onOpen: (Long) -> U
             tint = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
+}
+
+/** Totales de un periodo: sesiones, tiempo, distancia y calorías, más el pulso medio si lo hay. */
+@Composable
+private fun PeriodCard(title: String, stats: PeriodStats, modifier: Modifier) {
+    Card(modifier) {
+        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(title, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(
+                pluralStringResource(R.plurals.history_sessions, stats.sessions, stats.sessions),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+            )
+            if (stats.sessions > 0) {
+                Text(
+                    listOf(formatDuration(stats.seconds), formatDistance(stats.meters), "${stats.kcal} kcal")
+                        .joinToString("  ·  "),
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                stats.averages[StatParam.HEART_RATE]?.let {
+                    Text(
+                        stringResource(R.string.history_avg_heart_rate_value, it.roundToInt()),
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun MonthRow(month: YearMonth, stats: PeriodStats) {
+    val locale = Locale.getDefault()
+    val name = month.format(DateTimeFormatter.ofPattern("LLLL yyyy", locale)).replaceFirstChar { it.titlecase(locale) }
+    Row(
+        Modifier.widthIn(max = 720.dp).fillMaxWidth().heightIn(min = 48.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(Modifier.weight(1f)) {
+            Text(name, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
+            Text(
+                pluralStringResource(R.plurals.history_sessions, stats.sessions, stats.sessions),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        Text(
+            listOf(formatDuration(stats.seconds), formatDistance(stats.meters), "${stats.kcal} kcal").joinToString("  ·  "),
+            style = MaterialTheme.typography.bodyMedium,
+        )
+    }
+    HorizontalDivider()
 }
 
 @Composable

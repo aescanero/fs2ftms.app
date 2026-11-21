@@ -14,6 +14,13 @@
     <string name="common_not_set">not set</string>
     <string name="common_retry">Retry</string>
     <string name="common_save">Save</string>
+    <string name="compare_cycle">Cycle</string>
+    <string name="compare_delta_month">%1$s %% vs last 30 days</string>
+    <string name="compare_delta_week">%1$s %% vs last 7 days</string>
+    <string name="compare_last_session">Last session</string>
+    <string name="compare_month">Last 30 days</string>
+    <string name="compare_now">Now</string>
+    <string name="compare_week">Last 7 days</string>
     <string name="demo">Demo</string>
     <string name="devices_capture_hint">Keep using the machine until the capture ends: its profile is created from the data it sends.</string>
     <string name="devices_debug_events">Debug: connection events (%1$d)</string>
@@ -46,10 +53,12 @@
     <string name="gauge_zone">Z%1$d · %2$s</string>
     <string name="history_avg_cadence">Average cadence</string>
     <string name="history_avg_heart_rate">Average heart rate</string>
+    <string name="history_avg_heart_rate_value">Average heart rate %1$d bpm</string>
     <string name="history_avg_power">Average power</string>
     <string name="history_avg_resistance">Average resistance</string>
     <string name="history_avg_speed">Average speed</string>
     <string name="history_back">Back to history</string>
+    <string name="history_by_month">By month</string>
     <string name="history_delete">Delete session</string>
     <string name="history_delete_body">Its data will be removed from this device. This cannot be undone.</string>
     <string name="history_delete_title">Delete this session?</string>
@@ -67,6 +76,7 @@
     <string name="history_kcal_with_source">Calories (%1$s)</string>
     <string name="history_max_heart_rate">Maximum heart rate</string>
     <string name="history_open_session">Open session</string>
+    <string name="history_sessions_title">Sessions</string>
     <string name="history_time_in_zones">Time per heart rate zone</string>
     <string name="history_zones_hint">Enter your age or maximum heart rate in Settings to see time per zone.</string>
     <string name="kcal_source_heart_rate">from heart rate</string>

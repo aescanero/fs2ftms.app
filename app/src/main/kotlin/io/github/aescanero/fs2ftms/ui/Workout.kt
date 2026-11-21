@@ -43,6 +43,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import io.github.aescanero.fs2ftms.Comparison
 import io.github.aescanero.fs2ftms.DeviceSettings
 import io.github.aescanero.fs2ftms.R
 import io.github.aescanero.fs2ftms.RecorderState
@@ -69,6 +70,8 @@ internal fun WorkoutTab(
     recorder: RecorderState,
     settings: DeviceSettings,
     profile: MachineProfile?,
+    comparison: Comparison?,
+    onToggleCycle: (Boolean) -> Unit,
     hasPermissions: Boolean,
     onRequestPermissions: () -> Unit,
     onStart: () -> Unit,
@@ -102,8 +105,15 @@ internal fun WorkoutTab(
             val wide = maxWidth >= 600.dp && maxWidth > maxHeight
             if (wide) {
                 Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    if (heartRateSource != null) {
-                        PulseSlot(recorder, settings, staleSeconds, Modifier.weight(0.42f).fillMaxHeight())
+                    if (heartRateSource != null || comparison != null) {
+                        Column(Modifier.weight(0.42f).fillMaxHeight(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            if (heartRateSource != null) {
+                                PulseSlot(recorder, settings, staleSeconds, Modifier.weight(1f).fillMaxWidth())
+                            }
+                            if (comparison != null) {
+                                ComparisonCard(comparison, settings.cycle, onToggleCycle, Modifier.fillMaxWidth())
+                            }
+                        }
                     }
                     Metrics(recorder.sample, wide = true, profile, Modifier.weight(0.58f).fillMaxHeight())
                 }
@@ -111,6 +121,9 @@ internal fun WorkoutTab(
                 Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     if (heartRateSource != null) {
                         PulseSlot(recorder, settings, staleSeconds, Modifier.weight(0.42f).fillMaxWidth())
+                    }
+                    if (comparison != null) {
+                        ComparisonCard(comparison, settings.cycle, onToggleCycle, Modifier.fillMaxWidth())
                     }
                     Metrics(recorder.sample, wide = false, profile, Modifier.weight(0.58f).fillMaxWidth())
                 }

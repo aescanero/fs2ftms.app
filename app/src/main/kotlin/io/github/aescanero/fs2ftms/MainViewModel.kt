@@ -11,10 +11,14 @@ import io.github.aescanero.fs2ftms.ble.central.LogEntry
 import io.github.aescanero.fs2ftms.ble.central.ScanState
 import io.github.aescanero.fs2ftms.data.SampleEntity
 import io.github.aescanero.fs2ftms.data.SessionEntity
+import io.github.aescanero.fs2ftms.data.PeriodStats
 import io.github.aescanero.fs2ftms.data.Sessions
+import io.github.aescanero.fs2ftms.data.StatParam
+import io.github.aescanero.fs2ftms.data.Stats
 import io.github.aescanero.fs2ftms.protocol.DemoWorkout
 import io.github.aescanero.fs2ftms.protocol.MachineProfile
 import io.github.aescanero.fs2ftms.protocol.MachineType
+import io.github.aescanero.fs2ftms.protocol.Metric
 import io.github.aescanero.fs2ftms.protocol.ProfileBuilder
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -28,11 +32,29 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
+import java.time.YearMonth
+import java.time.ZoneId
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
 data class SessionDetail(val session: SessionEntity, val samples: List<SampleEntity>)
+
+data class HistorySummary(
+    val week: PeriodStats = PeriodStats.EMPTY,
+    val month: PeriodStats = PeriodStats.EMPTY,
+    val monthly: List<Pair<YearMonth, PeriodStats>> = emptyList(),
+)
+
+data class Comparison(
+    val params: List<StatParam>,
+    /** Valor de cada parámetro en la sesión en curso o en la última sesión. */
+    val current: Map<StatParam, Double>,
+    val live: Boolean,
+    val week: Map<StatParam, Double>,
+    val month: Map<StatParam, Double>,
+    val type: MachineType?,
+)
 
 class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val container = (application as Fs2FtmsApp).container
@@ -57,6 +79,53 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         state.result?.takeIf { it.error == null || it.services.isNotEmpty() }
             ?.let { ProfileBuilder.build(it.toCaptureInput(System.currentTimeMillis())) }
     }.stateIn(viewModelScope, SharingStarted.Eagerly, null)
+
+    /** Sesiones que cuentan para estadísticas: las de demostración solo con el modo demostración activo. */
+    private fun visible(list: List<SessionEntity>, current: DeviceSettings) =
+        if (current.demoActive) list else list.filterNot { it.machineName == DemoWorkout.NAME }
+
+    val historySummary: StateFlow<HistorySummary> = combine(sessions, container.settings) { list, current ->
+        val shown = visible(list, current)
+        val now = System.currentTimeMillis()
+        HistorySummary(
+            week = Stats.lastDays(shown, 7, now),
+            month = Stats.lastDays(shown, 30, now),
+            monthly = Stats.monthly(shown, ZoneId.systemDefault()),
+        )
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), HistorySummary())
+
+    /**
+     * Comparativa de la pantalla de entreno: medias de la sesión en curso (o de la última, si no se
+     * graba) frente a las de los últimos 7 y 30 días, con la misma clase de máquina.
+     */
+    val comparison: StateFlow<Comparison?> =
+        combine(sessions, container.recorder, selectedProfile, container.settings) { list, recorder, profile, current ->
+            val type = profile?.type?.name ?: return@combine null
+            val sameMachine = visible(list, current).filter { (it.machineType ?: MachineType.CROSS_TRAINER.name) == type }
+            val live = recorder.recording
+            val reference = if (live) null else sameMachine.firstOrNull() ?: return@combine null
+            val values = if (reference == null) {
+                recorder.averages
+            } else {
+                StatParam.entries.mapNotNull { param -> param.of(reference)?.let { param to it } }.toMap()
+            }
+            val history = if (reference != null) sameMachine.drop(1) else sameMachine
+            val now = System.currentTimeMillis()
+            val week = Stats.lastDays(history, 7, now).averages
+            val month = Stats.lastDays(history, 30, now).averages
+            if (week.isEmpty() && month.isEmpty()) return@combine null
+            val wanted = buildList {
+                if (profile.has(Metric.CADENCE)) add(StatParam.CADENCE)
+                if (profile.has(Metric.SPEED)) add(StatParam.SPEED)
+                if (profile.has(Metric.POWER)) add(StatParam.POWER)
+                if (profile.has(Metric.RESISTANCE)) add(StatParam.RESISTANCE)
+                if (current.heartRateAddress != null || current.demoActive) add(StatParam.HEART_RATE)
+            }
+            val params = wanted.filter { it in week || it in month }
+            if (params.isEmpty()) null else Comparison(params, values, live, week, month, profile.type)
+        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+
+    fun setCycle(enabled: Boolean) = container.settings.update { it.copy(cycle = enabled) }
 
     private val _detail = MutableStateFlow<SessionDetail?>(null)
     val detail: StateFlow<SessionDetail?> = _detail.asStateFlow()

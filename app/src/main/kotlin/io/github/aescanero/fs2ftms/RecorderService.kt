@@ -17,6 +17,7 @@ import io.github.aescanero.fs2ftms.ble.central.GattNotifyClient
 import io.github.aescanero.fs2ftms.data.SampleEntity
 import io.github.aescanero.fs2ftms.data.SessionEntity
 import io.github.aescanero.fs2ftms.data.Sessions
+import io.github.aescanero.fs2ftms.data.StatParam
 import io.github.aescanero.fs2ftms.protocol.DemoWorkout
 import io.github.aescanero.fs2ftms.protocol.FtmsUuids
 import io.github.aescanero.fs2ftms.protocol.HeartRateParser
@@ -122,6 +123,15 @@ class RecorderService : Service() {
         }
 
         val totals = SessionAccumulator()
+        // Sumas para las medias en vivo (mismo criterio que el resumen: muestras en movimiento).
+        var moving = 0
+        var cadenceSum = 0.0
+        var speedSum = 0.0
+        var powerSum = 0.0
+        var resistanceSum = 0.0
+        var resistanceCount = 0
+        var heartRateSum = 0.0
+        var heartRateCount = 0
         accumulator = totals
         paused = false
         fun record(raw: WorkoutSample) {
@@ -140,7 +150,30 @@ class RecorderService : Service() {
             }
             val sample = totals.add(timed, now)
             val heartRate = lastHeartRate?.takeIf { SystemClock.elapsedRealtime() - lastHeartRateAt < HEART_RATE_MAX_AGE_MS }
-            container.recorder.update { it.copy(sample = sample) }
+            if (sample.cadencePerMinute > 0) {
+                moving++
+                cadenceSum += sample.cadencePerMinute
+                speedSum += sample.speedKmh
+                powerSum += sample.powerWatts
+            }
+            sample.resistanceLevel?.let {
+                resistanceSum += it
+                resistanceCount++
+            }
+            heartRate?.let {
+                heartRateSum += it
+                heartRateCount++
+            }
+            val averages = buildMap {
+                if (moving > 0) {
+                    put(StatParam.CADENCE, cadenceSum / moving)
+                    if (speedSum > 0) put(StatParam.SPEED, speedSum / moving)
+                    if (powerSum > 0) put(StatParam.POWER, powerSum / moving)
+                }
+                if (resistanceCount > 0 && resistanceSum > 0) put(StatParam.RESISTANCE, resistanceSum / resistanceCount)
+                if (heartRateCount > 0) put(StatParam.HEART_RATE, heartRateSum / heartRateCount)
+            }
+            container.recorder.update { it.copy(sample = sample, averages = averages) }
             queue.trySend {
                 val id = sessionId ?: dao.insertSession(
                     SessionEntity(

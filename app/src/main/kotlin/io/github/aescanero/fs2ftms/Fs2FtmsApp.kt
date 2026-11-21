@@ -7,6 +7,7 @@ import io.github.aescanero.fs2ftms.ble.central.GattInspector
 import io.github.aescanero.fs2ftms.data.AppDatabase
 import io.github.aescanero.fs2ftms.data.SampleEntity
 import io.github.aescanero.fs2ftms.data.Sessions
+import io.github.aescanero.fs2ftms.data.StatParam
 import io.github.aescanero.fs2ftms.protocol.CalorieEstimator
 import io.github.aescanero.fs2ftms.protocol.HeartRateZones
 import io.github.aescanero.fs2ftms.protocol.MachineProfile
@@ -33,6 +34,8 @@ data class DeviceSettings(
     val weightKg: Int? = null,
     /** Sexo para la fórmula de calorías: true hombre, false mujer, null sin indicar. */
     val male: Boolean? = null,
+    /** Rotación automática de la comparativa de la pantalla de entreno. */
+    val cycle: Boolean = true,
 ) {
     /** Estimador de calorías por pulso, disponible cuando hay edad, peso y sexo. */
     val calorieEstimator: CalorieEstimator?
@@ -56,6 +59,8 @@ data class RecorderState(
     /** Instante (SystemClock.elapsedRealtime) de la última lectura de pulso. */
     val heartRateAtMs: Long? = null,
     val paused: Boolean = false,
+    /** Medias de la sesión en curso, para compararlas con los periodos anteriores. */
+    val averages: Map<StatParam, Double> = emptyMap(),
     val error: String? = null,
 )
 
@@ -81,6 +86,7 @@ class AppContainer(context: Context) {
             age = prefs.getInt("age", 0).takeIf { it > 0 },
             measuredMaxHeartRate = prefs.getInt("measuredMaxHeartRate", 0).takeIf { it > 0 },
             weightKg = prefs.getInt("weightKg", 0).takeIf { it > 0 },
+            cycle = prefs.getBoolean("cycle", true),
             male = when (prefs.getInt("sex", 0)) {
                 1 -> true
                 2 -> false
@@ -102,6 +108,7 @@ class AppContainer(context: Context) {
                     .putInt("age", it.age ?: 0)
                     .putInt("measuredMaxHeartRate", it.measuredMaxHeartRate ?: 0)
                     .putInt("weightKg", it.weightKg ?: 0)
+                    .putBoolean("cycle", it.cycle)
                     .putInt("sex", when (it.male) { true -> 1; false -> 2; null -> 0 })
                     .apply()
             }

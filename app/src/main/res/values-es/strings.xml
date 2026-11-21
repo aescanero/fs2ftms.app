@@ -13,6 +13,13 @@
     <string name="common_not_set">sin elegir</string>
     <string name="common_retry">Reintentar</string>
     <string name="common_save">Guardar</string>
+    <string name="compare_cycle">Ciclo</string>
+    <string name="compare_delta_month">%1$s %% frente a los últimos 30 días</string>
+    <string name="compare_delta_week">%1$s %% frente a los últimos 7 días</string>
+    <string name="compare_last_session">Última sesión</string>
+    <string name="compare_month">Últimos 30 días</string>
+    <string name="compare_now">Ahora</string>
+    <string name="compare_week">Últimos 7 días</string>
     <string name="demo">Demostración</string>
     <string name="devices_capture_hint">Sigue usando la máquina hasta que termine la captura: su perfil se crea con los datos que envía.</string>
     <string name="devices_debug_events">Depuración: eventos de conexión (%1$d)</string>
@@ -45,10 +52,12 @@
     <string name="gauge_zone">Z%1$d · %2$s</string>
     <string name="history_avg_cadence">Cadencia media</string>
     <string name="history_avg_heart_rate">Pulso medio</string>
+    <string name="history_avg_heart_rate_value">Pulso medio %1$d ppm</string>
     <string name="history_avg_power">Potencia media</string>
     <string name="history_avg_resistance">Resistencia media</string>
     <string name="history_avg_speed">Velocidad media</string>
     <string name="history_back">Volver al historial</string>
+    <string name="history_by_month">Por meses</string>
     <string name="history_delete">Borrar sesión</string>
     <string name="history_delete_body">Se eliminarán sus datos de este dispositivo. No se puede deshacer.</string>
     <string name="history_delete_title">¿Borrar esta sesión?</string>
@@ -66,6 +75,7 @@
     <string name="history_kcal_with_source">Calorías (%1$s)</string>
     <string name="history_max_heart_rate">Pulso máximo</string>
     <string name="history_open_session">Abrir sesión</string>
+    <string name="history_sessions_title">Sesiones</string>
     <string name="history_time_in_zones">Tiempo por zona de pulso</string>
     <string name="history_zones_hint">Indica tu edad o tu FC máxima en Ajustes para ver el tiempo por zona.</string>
     <string name="kcal_source_heart_rate">por pulso</string>

@@ -99,6 +99,8 @@ fun AppScreen(
     val profiles by vm.profiles.collectAsStateWithLifecycle()
     val selectedProfile by vm.selectedProfile.collectAsStateWithLifecycle()
     val dumpProfile by vm.dumpProfile.collectAsStateWithLifecycle()
+    val comparison by vm.comparison.collectAsStateWithLifecycle()
+    val summary by vm.historySummary.collectAsStateWithLifecycle()
     var tab by rememberSaveable { mutableIntStateOf(0) }
 
     // Mientras se graba solo está disponible la pantalla de entreno: evita salir de ella por un toque.
@@ -112,6 +114,8 @@ fun AppScreen(
                 recorder = recorder,
                 settings = settings,
                 profile = selectedProfile,
+                comparison = comparison,
+                onToggleCycle = { vm.setCycle(it) },
                 hasPermissions = hasPermissions,
                 onRequestPermissions = onRequestPermissions,
                 onStart = { vm.startRecording() },
@@ -131,7 +135,7 @@ fun AppScreen(
                         onSetManualKcal = { vm.setManualKcal(it) },
                     )
                 } else {
-                    HistoryList(sessions, onOpen = { vm.openSession(it) }, onGoToWorkout = { tab = 0 })
+                    HistoryList(sessions, summary, onOpen = { vm.openSession(it) }, onGoToWorkout = { tab = 0 })
                 }
             }
             2 -> if (hasPermissions) {
