@@ -105,23 +105,17 @@ internal fun WorkoutTab(
             val wide = maxWidth >= 600.dp && maxWidth > maxHeight
             if (wide) {
                 Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    if (heartRateSource != null || comparison != null) {
-                        Column(Modifier.weight(0.42f).fillMaxHeight(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            if (heartRateSource != null) {
-                                PulseSlot(recorder, settings, staleSeconds, Modifier.weight(1f).fillMaxWidth())
-                            }
-                            if (comparison != null) {
-                                ComparisonCard(comparison, settings.cycle, onToggleCycle, Modifier.fillMaxWidth())
-                            }
+                    Column(Modifier.weight(0.42f).fillMaxHeight(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        PulseSlot(recorder, settings, staleSeconds, heartRateSource != null, Modifier.weight(1f).fillMaxWidth())
+                        if (comparison != null) {
+                            ComparisonCard(comparison, settings.cycle, onToggleCycle, Modifier.fillMaxWidth())
                         }
                     }
                     Metrics(recorder.sample, wide = true, profile, Modifier.weight(0.58f).fillMaxHeight())
                 }
             } else {
                 Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    if (heartRateSource != null) {
-                        PulseSlot(recorder, settings, staleSeconds, Modifier.weight(0.42f).fillMaxWidth())
-                    }
+                    PulseSlot(recorder, settings, staleSeconds, heartRateSource != null, Modifier.weight(0.42f).fillMaxWidth())
                     if (comparison != null) {
                         ComparisonCard(comparison, settings.cycle, onToggleCycle, Modifier.fillMaxWidth())
                     }
@@ -242,16 +236,32 @@ private fun StatusStrip(recorder: RecorderState, machine: String?, heartRateSour
 }
 
 @Composable
-private fun PulseSlot(recorder: RecorderState, settings: DeviceSettings, staleSeconds: Int?, modifier: Modifier) {
+private fun PulseSlot(
+    recorder: RecorderState,
+    settings: DeviceSettings,
+    staleSeconds: Int?,
+    hasSource: Boolean,
+    modifier: Modifier,
+) {
     val maxHeartRate = settings.maxHeartRate
     Box(modifier, contentAlignment = Alignment.Center) {
         if (maxHeartRate != null) {
-            HeartRateGauge(
-                bpm = recorder.heartRate,
-                maxHeartRate = maxHeartRate,
-                modifier = Modifier.sizeIn(maxWidth = 560.dp, maxHeight = 560.dp),
-                staleSeconds = staleSeconds,
-            )
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                HeartRateGauge(
+                    bpm = recorder.heartRate,
+                    maxHeartRate = maxHeartRate,
+                    modifier = Modifier.weight(1f, fill = false).sizeIn(maxWidth = 560.dp, maxHeight = 560.dp),
+                    staleSeconds = staleSeconds,
+                )
+                if (!hasSource) {
+                    Text(
+                        stringResource(R.string.workout_pick_pulse),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center,
+                    )
+                }
+            }
         } else {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(stringResource(R.string.label_heart_rate), style = MaterialTheme.typography.titleSmall)
@@ -261,7 +271,7 @@ private fun PulseSlot(recorder: RecorderState, settings: DeviceSettings, staleSe
                     fontWeight = FontWeight.SemiBold,
                 )
                 Text(
-                    stringResource(R.string.workout_zones_hint),
+                    stringResource(if (hasSource) R.string.workout_zones_hint else R.string.workout_pick_pulse),
                     style = MaterialTheme.typography.bodyMedium,
                     textAlign = TextAlign.Center,
                 )

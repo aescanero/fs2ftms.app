@@ -42,7 +42,7 @@
     <string name="devices_use">Usar</string>
     <string name="devices_use_as_heart_rate">Usar como fuente de pulso</string>
     <string name="error_no_machine">No hay máquina elegida</string>
-    <string name="error_profile_unsupported">La máquina elegida no se puede grabar. Vuelve a capturarla en Dispositivos.</string>
+    <string name="error_profile_unsupported">La máquina elegida no se puede grabar. Vuelve a capturarla en Equipos.</string>
     <string name="error_start_recording">No se pudo iniciar la grabación: %1$s</string>
     <string name="gauge_desc_below">Pulso %1$d pulsaciones por minuto, por debajo de la zona 1</string>
     <string name="gauge_desc_zone">Pulso %1$d pulsaciones por minuto, zona %2$d %3$s</string>
@@ -149,7 +149,7 @@
     <string name="status_recording">Grabando</string>
     <string name="status_recording_demo">Grabando · demostración</string>
     <string name="status_waiting">Esperando datos: empieza a moverte</string>
-    <string name="tab_devices">Dispositivos</string>
+    <string name="tab_devices">Equipos</string>
     <string name="tab_history">Historial</string>
     <string name="tab_settings">Ajustes</string>
     <string name="tab_workout">Entreno</string>
@@ -163,7 +163,7 @@
     <string name="unit_rpm">rpm</string>
     <string name="unit_years">años</string>
     <string name="value_bpm">%1$d ppm</string>
-    <string name="workout_choose_machine">Elige tu máquina en la pestaña Dispositivos para poder grabar.</string>
+    <string name="workout_choose_machine">Elige tu máquina en la pestaña Equipos para poder grabar.</string>
     <string name="workout_devices_line">Máquina: %1$s  ·  Pulso: %2$s</string>
     <string name="workout_finish">Finalizar</string>
     <string name="workout_finish_body">Se guardará la sesión de %1$s.</string>
@@ -172,6 +172,7 @@
     <string name="workout_finish_title">¿Finalizar la sesión?</string>
     <string name="workout_keep_going">Seguir entrenando</string>
     <string name="workout_pause">Pausar</string>
+    <string name="workout_pick_pulse">Elige el pulsómetro en Equipos.</string>
     <string name="workout_resume">Reanudar</string>
     <string name="workout_start">Iniciar sesión</string>
     <string name="workout_zones_hint">Indica tu edad o tu FC máxima en Ajustes para ver las zonas.</string>

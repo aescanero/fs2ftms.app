@@ -173,6 +173,7 @@
     <string name="workout_finish_title">Finish the session?</string>
     <string name="workout_keep_going">Keep training</string>
     <string name="workout_pause">Pause</string>
+    <string name="workout_pick_pulse">Choose the heart rate monitor in Devices.</string>
     <string name="workout_resume">Resume</string>
     <string name="workout_start">Start session</string>
     <string name="workout_zones_hint">Enter your age or maximum heart rate in Settings to see the zones.</string>
