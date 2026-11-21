@@ -13,11 +13,16 @@ import io.github.aescanero.fs2ftms.data.SampleEntity
 import io.github.aescanero.fs2ftms.data.SessionEntity
 import io.github.aescanero.fs2ftms.data.Sessions
 import io.github.aescanero.fs2ftms.protocol.DemoWorkout
+import io.github.aescanero.fs2ftms.protocol.MachineProfile
+import io.github.aescanero.fs2ftms.protocol.MachineType
+import io.github.aescanero.fs2ftms.protocol.ProfileBuilder
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -39,6 +44,19 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val events: StateFlow<List<LogEntry>> = container.eventLog.entries
     val sessions: StateFlow<List<SessionEntity>> =
         container.dao.sessions().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val profiles: StateFlow<List<MachineProfile>> = container.profiles.profiles
+
+    /** Perfil de la máquina con la que se grabará: el guardado, el heredado o el de demostración. */
+    val selectedProfile: StateFlow<MachineProfile?> = combine(container.settings, container.profiles.profiles) { _, _ ->
+        container.selectedProfile()
+    }.stateIn(viewModelScope, SharingStarted.Eagerly, container.selectedProfile())
+
+    /** Perfil generado a partir del último volcado, antes de guardarlo. */
+    val dumpProfile: StateFlow<MachineProfile?> = container.inspector.dump.map { state ->
+        state.result?.takeIf { it.error == null || it.services.isNotEmpty() }
+            ?.let { ProfileBuilder.build(it.toCaptureInput(System.currentTimeMillis())) }
+    }.stateIn(viewModelScope, SharingStarted.Eagerly, null)
 
     private val _detail = MutableStateFlow<SessionDetail?>(null)
     val detail: StateFlow<SessionDetail?> = _detail.asStateFlow()
@@ -77,7 +95,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             val seconds = minutes * 60
             val end = System.currentTimeMillis()
             val start = end - seconds * 1000L
-            val session = SessionEntity(startedAtMs = start, endedAtMs = end, machineName = DemoWorkout.NAME)
+            val session = SessionEntity(
+                startedAtMs = start,
+                endedAtMs = end,
+                machineName = DemoWorkout.NAME,
+                machineType = MachineType.CROSS_TRAINER.name,
+            )
             val id = dao.insertSession(session)
             val generator = DemoWorkout(container.settings.value.maxHeartRate ?: 180)
             val samples = List(seconds) { index ->
@@ -118,18 +141,28 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun stopScan() = container.inspector.stopScan()
 
-    /** En modo normal basta una escucha corta para identificar el dispositivo. */
+    /** La escucha dura lo suficiente para que la máquina envíe varias tramas y generar su perfil. */
     fun inspect(address: String) =
-        container.inspector.inspect(address, if (container.settings.value.debug) 20 else 2)
+        container.inspector.inspect(address, if (container.settings.value.debug) 20 else 12)
 
     fun cancelDump() = container.inspector.cancelDump()
 
     fun clearDump() = container.inspector.clearDump()
 
-    fun useDumpAsMachine() {
-        val result = container.inspector.dump.value.result ?: return
-        container.settings.update { it.copy(machineAddress = result.address, machineName = result.scan?.name) }
+    /** Guarda el perfil generado con el último volcado y, si se puede grabar, lo deja como máquina activa. */
+    fun saveProfileFromDump() {
+        val profile = dumpProfile.value ?: return
+        container.profiles.save(profile)
+        if (profile.supported) selectProfile(profile)
         container.inspector.clearDump()
+    }
+
+    fun selectProfile(profile: MachineProfile) =
+        container.settings.update { it.copy(machineAddress = profile.address, machineName = profile.name) }
+
+    fun deleteProfile(profile: MachineProfile) {
+        container.profiles.delete(profile.address)
+        if (container.settings.value.machineAddress == profile.address) clearMachine()
     }
 
     fun useDumpAsHeartRate() {

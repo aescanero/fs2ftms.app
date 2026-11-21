@@ -17,12 +17,13 @@ import io.github.aescanero.fs2ftms.ble.central.GattNotifyClient
 import io.github.aescanero.fs2ftms.data.SampleEntity
 import io.github.aescanero.fs2ftms.data.SessionEntity
 import io.github.aescanero.fs2ftms.data.Sessions
-import io.github.aescanero.fs2ftms.protocol.CrossTrainerDataParser
 import io.github.aescanero.fs2ftms.protocol.DemoWorkout
 import io.github.aescanero.fs2ftms.protocol.FtmsUuids
 import io.github.aescanero.fs2ftms.protocol.HeartRateParser
+import io.github.aescanero.fs2ftms.protocol.Metric
 import io.github.aescanero.fs2ftms.protocol.SessionAccumulator
 import io.github.aescanero.fs2ftms.protocol.WorkoutSample
+import io.github.aescanero.fs2ftms.protocol.parserFor
 import io.github.aescanero.fs2ftms.protocol.toHex
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -75,6 +76,7 @@ class RecorderService : Service() {
         val settings = container.settings.value
         val demo = settings.demoActive
         val machineAddress = settings.machineAddress
+        val profile = container.selectedProfile()
         try {
             ServiceCompat.startForeground(
                 this,
@@ -87,12 +89,23 @@ class RecorderService : Service() {
             stopSelf()
             return
         }
-        if (machineAddress == null && !demo) {
-            container.recorder.value = RecorderState(error = getString(R.string.error_no_machine))
+        val dataParser = profile?.type?.let { parserFor(it) }
+        val error = when {
+            profile == null -> getString(R.string.error_no_machine)
+            !profile.supported || dataParser == null -> getString(R.string.error_profile_unsupported)
+            else -> null
+        }
+        if (error != null || profile == null || dataParser == null) {
+            container.recorder.value = RecorderState(error = error)
             ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE)
             stopSelf()
             return
         }
+        val dataCharacteristic = profile.type!!.dataCharacteristic
+        // Si la máquina no envía su propio tiempo, se cuenta el tiempo activo entre muestras.
+        val machineCountsTime = profile.has(Metric.ELAPSED_TIME)
+        var ownElapsed = 0.0
+        var lastSampleAt = 0L
         val log = container.eventLog
         val dao = container.dao
         val machineName = settings.machineName ?: machineAddress ?: DemoWorkout.NAME
@@ -108,20 +121,34 @@ class RecorderService : Service() {
             for (write in queue) runCatching { write() }.onFailure { log.add("Recorder", "Save error: ${it.message}") }
         }
 
-        val parser = CrossTrainerDataParser()
         val totals = SessionAccumulator()
         accumulator = totals
         paused = false
         fun record(raw: WorkoutSample) {
             // En pausa se descartan las muestras; al reanudar, el acumulador continúa donde estaba.
-            if (paused) return
+            if (paused) {
+                lastSampleAt = 0L
+                return
+            }
             val now = System.currentTimeMillis()
-            val sample = totals.add(raw, now)
+            val timed = if (machineCountsTime) {
+                raw
+            } else {
+                if (lastSampleAt > 0) ownElapsed += ((now - lastSampleAt) / 1000.0).coerceAtMost(5.0)
+                lastSampleAt = now
+                raw.copy(elapsedSeconds = ownElapsed.toInt())
+            }
+            val sample = totals.add(timed, now)
             val heartRate = lastHeartRate?.takeIf { SystemClock.elapsedRealtime() - lastHeartRateAt < HEART_RATE_MAX_AGE_MS }
             container.recorder.update { it.copy(sample = sample) }
             queue.trySend {
                 val id = sessionId ?: dao.insertSession(
-                    SessionEntity(startedAtMs = now, endedAtMs = now, machineName = sessionMachineName),
+                    SessionEntity(
+                        startedAtMs = now,
+                        endedAtMs = now,
+                        machineName = sessionMachineName,
+                        machineType = profile.type?.name,
+                    ),
                 ).also { sessionId = it }
                 dao.insertSample(
                     SampleEntity(
@@ -165,7 +192,7 @@ class RecorderService : Service() {
             scope,
             machineAddress,
             FtmsUuids.FITNESS_MACHINE_SERVICE,
-            listOf(FtmsUuids.CROSS_TRAINER_DATA, FtmsUuids.MACHINE_STATUS),
+            listOf(dataCharacteristic, FtmsUuids.MACHINE_STATUS),
             object : GattNotifyClient.Listener {
                 override fun onState(text: String, connected: Boolean) {
                     container.recorder.update { it.copy(machineConnected = connected) }
@@ -174,7 +201,7 @@ class RecorderService : Service() {
 
                 override fun onData(characteristic: UUID, value: ByteArray) {
                     when (characteristic) {
-                        FtmsUuids.CROSS_TRAINER_DATA -> parser.accept(value)?.let(::record)
+                        dataCharacteristic -> dataParser.accept(value)?.let { record(it.sample) }
                         FtmsUuids.MACHINE_STATUS -> log.add(machineName, "Machine Status: ${value.toHex()}")
                     }
                 }

@@ -27,6 +27,8 @@ data class SessionEntity(
     val averageHeartRate: Int? = null,
     val maxHeartRate: Int? = null,
     val machineName: String? = null,
+    /** Tipo FTMS de la máquina (MachineType.name); null en sesiones anteriores a los perfiles. */
+    val machineType: String? = null,
     val finished: Boolean = false,
 ) {
     /** Calorías a mostrar: corrección manual, si no la estimación por pulso, si no la máquina. */

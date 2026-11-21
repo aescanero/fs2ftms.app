@@ -96,6 +96,9 @@ fun AppScreen(
     val scan by vm.scan.collectAsStateWithLifecycle()
     val dump by vm.dump.collectAsStateWithLifecycle()
     val events by vm.events.collectAsStateWithLifecycle()
+    val profiles by vm.profiles.collectAsStateWithLifecycle()
+    val selectedProfile by vm.selectedProfile.collectAsStateWithLifecycle()
+    val dumpProfile by vm.dumpProfile.collectAsStateWithLifecycle()
     var tab by rememberSaveable { mutableIntStateOf(0) }
 
     // Mientras se graba solo está disponible la pantalla de entreno: evita salir de ella por un toque.
@@ -108,6 +111,7 @@ fun AppScreen(
             0 -> WorkoutTab(
                 recorder = recorder,
                 settings = settings,
+                profile = selectedProfile,
                 hasPermissions = hasPermissions,
                 onRequestPermissions = onRequestPermissions,
                 onStart = { vm.startRecording() },
@@ -133,6 +137,9 @@ fun AppScreen(
             2 -> if (hasPermissions) {
                 DevicesTab(
                     settings = settings,
+                    profiles = profiles,
+                    selected = selectedProfile,
+                    dumpProfile = dumpProfile,
                     scan = scan,
                     dump = dump,
                     events = events,
@@ -141,9 +148,10 @@ fun AppScreen(
                     onInspect = { vm.inspect(it) },
                     onCancelDump = { vm.cancelDump() },
                     onClearDump = { vm.clearDump() },
-                    onUseAsMachine = { vm.useDumpAsMachine() },
+                    onSaveProfile = { vm.saveProfileFromDump() },
+                    onSelectProfile = { vm.selectProfile(it) },
+                    onDeleteProfile = { vm.deleteProfile(it) },
                     onUseAsHeartRate = { vm.useDumpAsHeartRate() },
-                    onClearMachine = { vm.clearMachine() },
                     onClearHeartRate = { vm.clearHeartRate() },
                     onShareDump = { onShare(vm.exportDumpIntent()) },
                     onShareEvents = { onShare(vm.exportEventsIntent()) },
@@ -207,149 +215,6 @@ internal fun PermissionRequest(onRequestPermissions: () -> Unit) {
     Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text(stringResource(R.string.permissions_missing))
         Button(onClick = onRequestPermissions) { Text(stringResource(R.string.permissions_grant)) }
-    }
-}
-
-@Composable
-private fun DevicesTab(
-    settings: DeviceSettings,
-    scan: ScanState,
-    dump: DumpState,
-    events: List<LogEntry>,
-    onStartScan: () -> Unit,
-    onStopScan: () -> Unit,
-    onInspect: (String) -> Unit,
-    onCancelDump: () -> Unit,
-    onClearDump: () -> Unit,
-    onUseAsMachine: () -> Unit,
-    onUseAsHeartRate: () -> Unit,
-    onClearMachine: () -> Unit,
-    onClearHeartRate: () -> Unit,
-    onShareDump: () -> Unit,
-    onShareEvents: () -> Unit,
-) {
-    val result = dump.result
-    if (dump.running || result != null) {
-        Column(
-            Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            Text(
-                if (dump.running) stringResource(R.string.devices_querying) else (result?.scan?.name ?: result?.address ?: ""),
-                style = MaterialTheme.typography.titleMedium,
-            )
-            Text(dump.status)
-            if (dump.running) {
-                OutlinedButton(onClick = onCancelDump, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.common_cancel)) }
-            } else if (result != null) {
-                val isMachine = result.services.any { service ->
-                    service.uuid == "0x1826" && service.characteristics.any { it.uuid == "0x2ACE" }
-                }
-                val isHeartRate = result.services.any { it.uuid == "0x180D" }
-                if (isMachine) {
-                    Button(onClick = onUseAsMachine, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.devices_use_as_machine)) }
-                }
-                if (isHeartRate) {
-                    Button(onClick = onUseAsHeartRate, modifier = Modifier.fillMaxWidth()) {
-                        Text(stringResource(R.string.devices_use_as_heart_rate))
-                    }
-                }
-                if (!isMachine && !isHeartRate) {
-                    Text(stringResource(R.string.devices_unsupported))
-                }
-                if (settings.debug) {
-                    OutlinedButton(onClick = onShareDump, modifier = Modifier.fillMaxWidth()) {
-                        Text(stringResource(R.string.devices_export_dump))
-                    }
-                }
-                OutlinedButton(onClick = onClearDump, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.common_back)) }
-                if (settings.debug) {
-                    Text(
-                        result.toText(),
-                        style = MaterialTheme.typography.bodySmall,
-                        fontFamily = FontFamily.Monospace,
-                    )
-                }
-            }
-        }
-        return
-    }
-    val format = SimpleDateFormat("HH:mm:ss", Locale.US)
-    LazyColumn(Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
-        item {
-            Column(Modifier.padding(vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                SelectedDevice(stringResource(R.string.label_machine), settings.machineName ?: settings.machineAddress, onClearMachine)
-                SelectedDevice(stringResource(R.string.label_heart_rate), settings.heartRateName ?: settings.heartRateAddress, onClearHeartRate)
-                Text(
-                    stringResource(R.string.devices_help),
-                    style = MaterialTheme.typography.bodySmall,
-                )
-                if (scan.scanning) {
-                    OutlinedButton(onClick = onStopScan, modifier = Modifier.fillMaxWidth()) {
-                        Text(stringResource(R.string.devices_stop_scan, scan.entries.size))
-                    }
-                } else {
-                    Button(onClick = onStartScan, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.devices_scan)) }
-                }
-                scan.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-            }
-        }
-        items(scan.entries, key = { it.address }) { entry ->
-            ScanRow(entry, onInspect)
-            HorizontalDivider()
-        }
-        if (settings.debug) {
-            item {
-                Column(Modifier.padding(vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(stringResource(R.string.devices_debug_events, events.size), fontWeight = FontWeight.Bold)
-                    OutlinedButton(onClick = onShareEvents, modifier = Modifier.fillMaxWidth()) {
-                        Text(stringResource(R.string.devices_export_events))
-                    }
-                }
-            }
-            items(events.asReversed()) { event ->
-                Text(
-                    "${format.format(Date(event.timestampMs))}  ${event.source}: ${event.text}",
-                    style = MaterialTheme.typography.bodySmall,
-                    modifier = Modifier.padding(vertical = 4.dp),
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun SelectedDevice(label: String, name: String?, onClear: () -> Unit) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        Text(
-            stringResource(R.string.devices_selected, label, name ?: stringResource(R.string.common_not_set)),
-            Modifier.weight(1f),
-            fontWeight = FontWeight.Bold,
-        )
-        if (name != null) TextButton(onClick = onClear) { Text(stringResource(R.string.devices_remove)) }
-    }
-}
-
-@Composable
-private fun ScanRow(entry: ScanEntry, onInspect: (String) -> Unit) {
-    Column(Modifier.fillMaxWidth().clickable { onInspect(entry.address) }.padding(vertical = 10.dp)) {
-        val machineTag = stringResource(R.string.devices_tag_machine)
-        val heartRateTag = stringResource(R.string.devices_tag_heart_rate)
-        val notConnectableTag = stringResource(R.string.devices_tag_not_connectable)
-        val tags = buildList {
-            if (entry.hasFtms) add(machineTag)
-            if ("0x180D" in entry.serviceUuids) add(heartRateTag)
-            if (!entry.connectable) add(notConnectableTag)
-        }
-        Text(
-            (entry.name ?: stringResource(R.string.devices_unnamed)) + if (tags.isEmpty()) "" else "  ·  " + tags.joinToString(" · "),
-            fontWeight = if (tags.isNotEmpty() && entry.connectable) FontWeight.Bold else FontWeight.Normal,
-        )
-        Text(
-            "${entry.address}  ${entry.rssi} dBm",
-            style = MaterialTheme.typography.labelSmall,
-            fontFamily = FontFamily.Monospace,
-        )
     }
 }
 

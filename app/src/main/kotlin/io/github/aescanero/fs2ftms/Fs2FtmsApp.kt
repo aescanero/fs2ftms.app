@@ -9,6 +9,8 @@ import io.github.aescanero.fs2ftms.data.SampleEntity
 import io.github.aescanero.fs2ftms.data.Sessions
 import io.github.aescanero.fs2ftms.protocol.CalorieEstimator
 import io.github.aescanero.fs2ftms.protocol.HeartRateZones
+import io.github.aescanero.fs2ftms.protocol.MachineProfile
+import io.github.aescanero.fs2ftms.protocol.MachineType
 import io.github.aescanero.fs2ftms.protocol.WorkoutSample
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -67,6 +69,7 @@ class AppContainer(context: Context) {
     val recorder = MutableStateFlow(RecorderState())
 
     private val prefs = context.getSharedPreferences("settings", Context.MODE_PRIVATE)
+    val profiles = ProfileStore(prefs)
     val settings = MutableStateFlow(
         DeviceSettings(
             machineAddress = prefs.getString("machineAddress", null) ?: prefs.getString("sourceAddress", null),
@@ -103,6 +106,8 @@ class AppContainer(context: Context) {
                     .apply()
             }
         }
+        // Sesiones antiguas sin tipo de máquina: todas se grabaron con la elíptica.
+        scope.launch(Dispatchers.IO) { dao.fillMissingMachineType(MachineType.CROSS_TRAINER.name) }
         // Reparación única de sesiones grabadas con el salto inicial de contadores (ver SessionAccumulator).
         if (!prefs.getBoolean(REPAIR_JUMPS_DONE, false)) {
             scope.launch(Dispatchers.IO) {
@@ -135,6 +140,14 @@ class AppContainer(context: Context) {
             }
         }
     }
+}
+
+/** Perfil de la máquina elegida; las elegidas antes de existir los perfiles se tratan como elíptica. */
+fun AppContainer.selectedProfile(): MachineProfile? {
+    val current = settings.value
+    if (current.demoActive) return DEMO_PROFILE
+    val address = current.machineAddress ?: return null
+    return profiles.find(address) ?: MachineProfile.legacy(address, current.machineName)
 }
 
 private const val REPAIR_JUMPS_DONE = "repairJumpsV1"

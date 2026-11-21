@@ -88,6 +88,7 @@ object Sessions {
             .putNullable("averageHeartRate", session.averageHeartRate)
             .putNullable("maxHeartRate", session.maxHeartRate)
             .putNullable("machineName", session.machineName)
+            .putNullable("machineType", session.machineType)
         val array = JSONArray()
         samples.forEach { s ->
             array.put(

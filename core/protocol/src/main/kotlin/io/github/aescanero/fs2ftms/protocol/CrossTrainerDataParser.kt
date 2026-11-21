@@ -3,16 +3,9 @@ package io.github.aescanero.fs2ftms.protocol
 /**
  * Decodifica Cross Trainer Data (0x2ACE). Con MTU 23 la máquina reparte los campos en varios
  * paquetes: los que llevan el bit "More Data" se acumulan y la muestra se emite con el último.
+ * Validado con tramas reales de la Merach MRK-E27.
  */
-class CrossTrainerDataParser {
-    private class Reader(private val data: ByteArray) {
-        private var position = 0
-        fun u8(): Int = data[position++].toInt() and 0xFF
-        fun u16(): Int = u8() or (u8() shl 8)
-        fun u24(): Int = u16() or (u8() shl 16)
-        fun s16(): Int = u16().toShort().toInt()
-    }
-
+class CrossTrainerDataParser : FtmsDataParser {
     private var speed: Double? = null
     private var averageSpeed: Double? = null
     private var distance: Int? = null
@@ -24,23 +17,34 @@ class CrossTrainerDataParser {
     private var averagePower: Int? = null
     private var energy: Int? = null
     private var elapsed: Int? = null
+    private val present = HashSet<Metric>()
 
     /** Devuelve una muestra completa cuando llega el paquete final; null en los intermedios. */
-    fun accept(value: ByteArray): WorkoutSample? {
+    override fun accept(value: ByteArray): ParsedSample? {
         if (value.size < 3) return null
-        val reader = Reader(value)
+        val reader = FrameReader(value)
         val flags = reader.u24()
         fun has(bit: Int) = (flags and (1 shl bit)) != 0
         val moreData = has(0)
         try {
-            if (!moreData) speed = reader.u16() / 100.0
+            if (!moreData) {
+                speed = reader.u16() / 100.0
+                present += Metric.SPEED
+            }
             if (has(1)) averageSpeed = reader.u16() / 100.0
-            if (has(2)) distance = reader.u24()
+            if (has(2)) {
+                distance = reader.u24()
+                present += Metric.DISTANCE
+            }
             if (has(3)) {
                 stepRate = reader.u16()
                 averageStepRate = reader.u16()
+                present += Metric.CADENCE
             }
-            if (has(4)) strideCount = reader.u16() / 10.0
+            if (has(4)) {
+                strideCount = reader.u16() / 10.0
+                present += Metric.STRIDES
+            }
             if (has(5)) {
                 reader.u16()
                 reader.u16()
@@ -49,24 +53,36 @@ class CrossTrainerDataParser {
                 reader.s16()
                 reader.s16()
             }
-            if (has(7)) resistance = reader.s16() / 10.0
-            if (has(8)) power = reader.s16()
+            if (has(7)) {
+                resistance = reader.s16() / 10.0
+                present += Metric.RESISTANCE
+            }
+            if (has(8)) {
+                power = reader.s16()
+                present += Metric.POWER
+            }
             if (has(9)) averagePower = reader.s16()
             if (has(10)) {
                 val total = reader.u16()
-                if (total != 0xFFFF) energy = total
+                if (total != 0xFFFF) {
+                    energy = total
+                    present += Metric.ENERGY
+                }
                 reader.u16()
                 reader.u8()
             }
             if (has(11)) reader.u8()
             if (has(12)) reader.u8()
-            if (has(13)) elapsed = reader.u16()
+            if (has(13)) {
+                elapsed = reader.u16()
+                present += Metric.ELAPSED_TIME
+            }
             if (has(14)) reader.u16()
         } catch (e: IndexOutOfBoundsException) {
             return null
         }
         if (moreData) return null
-        return WorkoutSample(
+        val sample = WorkoutSample(
             elapsedSeconds = elapsed ?: 0,
             speedKmh = speed ?: 0.0,
             cadencePerMinute = stepRate ?: 0,
@@ -79,5 +95,6 @@ class CrossTrainerDataParser {
             resistanceLevel = resistance,
             averagePowerWatts = averagePower,
         )
+        return ParsedSample(sample, present.toSet()).also { present.clear() }
     }
 }

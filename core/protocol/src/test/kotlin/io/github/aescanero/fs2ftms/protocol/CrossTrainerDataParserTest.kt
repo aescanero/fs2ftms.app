@@ -16,7 +16,7 @@ class CrossTrainerDataParserTest {
     fun mergesSplitPackets() {
         val parser = CrossTrainerDataParser()
         assertNull(parser.accept(first))
-        val sample = parser.accept(last)
+        val sample = parser.accept(last)?.sample
         assertNotNull(sample)
         sample!!
         assertEquals(11.72, sample.speedKmh, 0.001)

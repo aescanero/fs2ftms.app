@@ -47,6 +47,9 @@ import io.github.aescanero.fs2ftms.DeviceSettings
 import io.github.aescanero.fs2ftms.R
 import io.github.aescanero.fs2ftms.RecorderState
 import io.github.aescanero.fs2ftms.protocol.DemoWorkout
+import io.github.aescanero.fs2ftms.protocol.MachineProfile
+import io.github.aescanero.fs2ftms.protocol.MachineType
+import io.github.aescanero.fs2ftms.protocol.Metric
 import io.github.aescanero.fs2ftms.protocol.WorkoutSample
 import kotlinx.coroutines.delay
 import kotlin.math.min
@@ -65,6 +68,7 @@ private const val MIN_VALUE_SIZE = 24f
 internal fun WorkoutTab(
     recorder: RecorderState,
     settings: DeviceSettings,
+    profile: MachineProfile?,
     hasPermissions: Boolean,
     onRequestPermissions: () -> Unit,
     onStart: () -> Unit,
@@ -101,14 +105,14 @@ internal fun WorkoutTab(
                     if (heartRateSource != null) {
                         PulseSlot(recorder, settings, staleSeconds, Modifier.weight(0.42f).fillMaxHeight())
                     }
-                    Metrics(recorder.sample, wide = true, Modifier.weight(0.58f).fillMaxHeight())
+                    Metrics(recorder.sample, wide = true, profile, Modifier.weight(0.58f).fillMaxHeight())
                 }
             } else {
                 Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     if (heartRateSource != null) {
                         PulseSlot(recorder, settings, staleSeconds, Modifier.weight(0.42f).fillMaxWidth())
                     }
-                    Metrics(recorder.sample, wide = false, Modifier.weight(0.58f).fillMaxWidth())
+                    Metrics(recorder.sample, wide = false, profile, Modifier.weight(0.58f).fillMaxWidth())
                 }
             }
         }
@@ -253,8 +257,38 @@ private fun PulseSlot(recorder: RecorderState, settings: DeviceSettings, staleSe
     }
 }
 
+/** Valor y unidad de una métrica para mostrarla en una tarjeta. */
 @Composable
-private fun Metrics(sample: WorkoutSample?, wide: Boolean, modifier: Modifier) {
+private fun metricValue(metric: Metric, sample: WorkoutSample?, type: MachineType?): Pair<String, String?> {
+    if (sample == null) return NO_VALUE to null
+    return when (metric) {
+        Metric.SPEED -> "%.1f".format(sample.speedKmh) to "km/h"
+        Metric.CADENCE -> sample.cadencePerMinute.toString() to
+            if (type == MachineType.INDOOR_BIKE) stringResource(R.string.unit_rpm) else "/min"
+        Metric.DISTANCE -> distanceParts(sample.distanceMeters)
+        Metric.STRIDES -> "%.0f".format(sample.strideCount) to null
+        Metric.RESISTANCE -> (sample.resistanceLevel?.let { "%.0f".format(it) } ?: NO_VALUE) to null
+        Metric.POWER -> sample.powerWatts.toString() to "W"
+        Metric.ENERGY -> sample.energyKcal.toString() to "kcal"
+        Metric.ELAPSED_TIME -> formatDuration(sample.elapsedSeconds) to null
+    }
+}
+
+/**
+ * Métricas según el perfil de la máquina: el tiempo siempre; junto a él la resistencia (o la
+ * distancia); después hasta tres medianas y hasta tres compactas, solo de lo que la máquina envía.
+ */
+@Composable
+private fun Metrics(sample: WorkoutSample?, wide: Boolean, profile: MachineProfile?, modifier: Modifier) {
+    val available = profile?.metrics ?: Metric.entries.toSet()
+    val type = profile?.type
+    val second = listOf(Metric.RESISTANCE, Metric.DISTANCE).firstOrNull { it in available }
+    val medium = listOf(Metric.CADENCE, Metric.SPEED, Metric.ENERGY, Metric.POWER, Metric.DISTANCE)
+        .filter { it in available && it != second }
+        .take(3)
+    val compact = listOf(Metric.DISTANCE, Metric.POWER, Metric.STRIDES, Metric.ENERGY)
+        .filter { it in available && it != second && it !in medium }
+        .take(3)
     Column(modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(Modifier.weight(1.3f).fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             MetricTile(
@@ -264,51 +298,37 @@ private fun Metrics(sample: WorkoutSample?, wide: Boolean, modifier: Modifier) {
                 PRIMARY_MAX_SIZE,
                 Modifier.weight(1.4f).fillMaxHeight(),
             )
-            MetricTile(
-                stringResource(R.string.metric_resistance),
-                sample?.resistanceLevel?.let { "%.0f".format(it) } ?: NO_VALUE,
-                null,
-                PRIMARY_MAX_SIZE,
-                Modifier.weight(1f).fillMaxHeight(),
-            )
+            if (second != null) {
+                val (value, unit) = metricValue(second, sample, type)
+                MetricTile(stringResource(metricRes(second)), value, unit, PRIMARY_MAX_SIZE, Modifier.weight(1f).fillMaxHeight())
+            }
         }
-        Row(Modifier.weight(1f).fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            MetricTile(
-                stringResource(R.string.metric_cadence),
-                sample?.cadencePerMinute?.toString() ?: NO_VALUE,
-                "/min",
-                SECONDARY_MAX_SIZE,
-                Modifier.weight(1f).fillMaxHeight(),
-            )
-            MetricTile(
-                stringResource(R.string.metric_speed),
-                sample?.let { "%.1f".format(it.speedKmh) } ?: NO_VALUE,
-                "km/h",
-                SECONDARY_MAX_SIZE,
-                Modifier.weight(1f).fillMaxHeight(),
-            )
-            MetricTile(
-                stringResource(R.string.metric_calories),
-                sample?.energyKcal?.toString() ?: NO_VALUE,
-                "kcal",
-                SECONDARY_MAX_SIZE,
-                Modifier.weight(1f).fillMaxHeight(),
-            )
+        if (medium.isNotEmpty()) {
+            Row(Modifier.weight(1f).fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                medium.forEach { metric ->
+                    val (value, unit) = metricValue(metric, sample, type)
+                    MetricTile(
+                        stringResource(metricRes(metric)),
+                        value,
+                        unit,
+                        SECONDARY_MAX_SIZE,
+                        Modifier.weight(1f).fillMaxHeight(),
+                    )
+                }
+            }
         }
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            CompactTile(
-                stringResource(R.string.metric_distance),
-                sample?.let { formatDistance(it.distanceMeters) } ?: NO_VALUE,
-                wide,
-                Modifier.weight(1f),
-            )
-            CompactTile(stringResource(R.string.metric_power), sample?.let { "${it.powerWatts} W" } ?: NO_VALUE, wide, Modifier.weight(1f))
-            CompactTile(
-                stringResource(R.string.metric_strides),
-                sample?.let { "%.0f".format(it.strideCount) } ?: NO_VALUE,
-                wide,
-                Modifier.weight(1f),
-            )
+        if (compact.isNotEmpty()) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                compact.forEach { metric ->
+                    val (value, unit) = metricValue(metric, sample, type)
+                    CompactTile(
+                        stringResource(metricRes(metric)),
+                        if (unit == null || value == NO_VALUE) value else "$value $unit",
+                        wide,
+                        Modifier.weight(1f),
+                    )
+                }
+            }
         }
     }
 }

@@ -39,6 +39,11 @@ entrenamiento iniciado, así que Zepp también grabará su sesión.
 - Evitar la palabra "focus" en textos.
 
 ## Estado real
+- Perfiles (21-11-2026): cada máquina se da de alta capturando su FTMS (Dispositivos → pulsar mientras se
+  usa). `ProfileBuilder` (:core:protocol) decide tipo y estado (SUPPORTED, NO_FTMS, UNKNOWN_TYPE,
+  TYPE_NOT_SUPPORTED, NO_DATA) y las métricas observadas en las tramas; la pantalla de entreno muestra solo
+  esas. Decodificadores: elíptica (validado con la Merach) y bicicleta (según especificación, pendiente de
+  validar con la Toputure). Perfiles en preferencias (JSON, `ProfileStore`); sesiones con `machineType`.
 - Módulos: `:app` (UI y servicio de grabación), `:core:protocol` (Kotlin puro: parser 0x2ACE, pulso,
   acumulador de sesión; con tests sobre tramas reales), `:ble:central` (escáner, volcado GATT,
   `GattNotifyClient` con reconexión, `EventLog`), `:data` (Room: sesiones y muestras). minSdk 33.

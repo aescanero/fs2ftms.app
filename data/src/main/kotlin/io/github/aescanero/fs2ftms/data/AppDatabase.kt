@@ -29,6 +29,9 @@ interface SessionDao {
     @Query("SELECT * FROM sessions WHERE finished = 1 ORDER BY startedAtMs DESC")
     fun sessions(): Flow<List<SessionEntity>>
 
+    @Query("UPDATE sessions SET machineType = :type WHERE machineType IS NULL")
+    suspend fun fillMissingMachineType(type: String)
+
     @Query("SELECT * FROM sessions WHERE finished = 1")
     suspend fun finishedSessions(): List<SessionEntity>
 
@@ -51,7 +54,7 @@ interface SessionDao {
     suspend fun deleteSession(id: Long)
 }
 
-@Database(entities = [SessionEntity::class, SampleEntity::class], version = 2, exportSchema = false)
+@Database(entities = [SessionEntity::class, SampleEntity::class], version = 3, exportSchema = false)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun sessionDao(): SessionDao
 
@@ -62,9 +65,15 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        private val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE sessions ADD COLUMN machineType TEXT")
+            }
+        }
+
         fun create(context: Context): AppDatabase =
             Room.databaseBuilder(context.applicationContext, AppDatabase::class.java, "fs2ftms.db")
-                .addMigrations(MIGRATION_1_2)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
                 .build()
     }
 }
