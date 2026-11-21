@@ -16,6 +16,7 @@ class IndoorBikeDataParser : FtmsDataParser {
     private var averagePower: Int? = null
     private var energy: Int? = null
     private var elapsed: Int? = null
+    private var heartRate: Int? = null
     private val present = HashSet<Metric>()
 
     override fun accept(value: ByteArray): ParsedSample? {
@@ -57,7 +58,10 @@ class IndoorBikeDataParser : FtmsDataParser {
                 reader.u16()
                 reader.u8()
             }
-            if (has(9)) reader.u8()
+            if (has(9)) {
+                heartRate = reader.u8().takeIf { it > 0 }
+                present += Metric.HEART_RATE
+            }
             if (has(10)) reader.u8()
             if (has(11)) {
                 elapsed = reader.u16()
@@ -80,6 +84,7 @@ class IndoorBikeDataParser : FtmsDataParser {
             averageSpeedKmh = averageSpeed,
             resistanceLevel = resistance,
             averagePowerWatts = averagePower,
+            heartRate = heartRate,
         )
         return ParsedSample(sample, present.toSet()).also { present.clear() }
     }

@@ -3,7 +3,7 @@ package io.github.aescanero.fs2ftms.protocol
 import java.util.UUID
 
 /** Métricas que una máquina puede aportar a una sesión. El tiempo se muestra siempre. */
-enum class Metric { SPEED, CADENCE, DISTANCE, STRIDES, RESISTANCE, POWER, ENERGY, ELAPSED_TIME }
+enum class Metric { SPEED, CADENCE, DISTANCE, STRIDES, RESISTANCE, POWER, ENERGY, ELAPSED_TIME, HEART_RATE }
 
 /**
  * Tipos de máquina del perfil FTMS, con su característica de datos y su bit en el Service Data del

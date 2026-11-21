@@ -172,7 +172,6 @@
     <string name="workout_finish_title">¿Finalizar la sesión?</string>
     <string name="workout_keep_going">Seguir entrenando</string>
     <string name="workout_pause">Pausar</string>
-    <string name="workout_pick_pulse">Elige el pulsómetro en Equipos.</string>
     <string name="workout_resume">Reanudar</string>
     <string name="workout_start">Iniciar sesión</string>
     <string name="workout_zones_hint">Indica tu edad o tu FC máxima en Ajustes para ver las zonas.</string>

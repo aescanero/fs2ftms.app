@@ -63,6 +63,7 @@ internal fun metricRes(metric: Metric): Int = when (metric) {
     Metric.POWER -> R.string.metric_power
     Metric.ENERGY -> R.string.metric_calories
     Metric.ELAPSED_TIME -> R.string.metric_time
+    Metric.HEART_RATE -> R.string.label_heart_rate
 }
 
 /** Estado del perfil en una frase: qué es la máquina y si se puede grabar. */

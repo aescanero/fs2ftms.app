@@ -87,7 +87,13 @@ internal fun WorkoutTab(
 
     val demo = settings.demoActive
     val machine = if (demo) DemoWorkout.NAME else settings.machineName ?: settings.machineAddress
-    val heartRateSource = if (demo) DemoWorkout.NAME else settings.heartRateName ?: settings.heartRateAddress
+    // Fuente de pulso: un pulsómetro elegido (reloj, banda) o la propia máquina si lo envía.
+    val heartRateSource = when {
+        demo -> DemoWorkout.NAME
+        settings.heartRateAddress != null -> settings.heartRateName ?: settings.heartRateAddress
+        profile?.has(Metric.HEART_RATE) == true -> profile.name ?: machine
+        else -> null
+    }
     var confirmFinish by remember { mutableStateOf(false) }
     val now by produceState(SystemClock.elapsedRealtime(), recorder.recording) {
         while (true) {
@@ -105,17 +111,23 @@ internal fun WorkoutTab(
             val wide = maxWidth >= 600.dp && maxWidth > maxHeight
             if (wide) {
                 Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Column(Modifier.weight(0.42f).fillMaxHeight(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        PulseSlot(recorder, settings, staleSeconds, heartRateSource != null, Modifier.weight(1f).fillMaxWidth())
-                        if (comparison != null) {
-                            ComparisonCard(comparison, settings.cycle, onToggleCycle, Modifier.fillMaxWidth())
+                    if (heartRateSource != null || comparison != null) {
+                        Column(Modifier.weight(0.42f).fillMaxHeight(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            if (heartRateSource != null) {
+                                PulseSlot(recorder, settings, staleSeconds, Modifier.weight(1f).fillMaxWidth())
+                            }
+                            if (comparison != null) {
+                                ComparisonCard(comparison, settings.cycle, onToggleCycle, Modifier.fillMaxWidth())
+                            }
                         }
                     }
                     Metrics(recorder.sample, wide = true, profile, Modifier.weight(0.58f).fillMaxHeight())
                 }
             } else {
                 Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    PulseSlot(recorder, settings, staleSeconds, heartRateSource != null, Modifier.weight(0.42f).fillMaxWidth())
+                    if (heartRateSource != null) {
+                        PulseSlot(recorder, settings, staleSeconds, Modifier.weight(0.42f).fillMaxWidth())
+                    }
                     if (comparison != null) {
                         ComparisonCard(comparison, settings.cycle, onToggleCycle, Modifier.fillMaxWidth())
                     }
@@ -240,28 +252,17 @@ private fun PulseSlot(
     recorder: RecorderState,
     settings: DeviceSettings,
     staleSeconds: Int?,
-    hasSource: Boolean,
     modifier: Modifier,
 ) {
     val maxHeartRate = settings.maxHeartRate
     Box(modifier, contentAlignment = Alignment.Center) {
         if (maxHeartRate != null) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                HeartRateGauge(
-                    bpm = recorder.heartRate,
-                    maxHeartRate = maxHeartRate,
-                    modifier = Modifier.weight(1f, fill = false).sizeIn(maxWidth = 560.dp, maxHeight = 560.dp),
-                    staleSeconds = staleSeconds,
-                )
-                if (!hasSource) {
-                    Text(
-                        stringResource(R.string.workout_pick_pulse),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        textAlign = TextAlign.Center,
-                    )
-                }
-            }
+            HeartRateGauge(
+                bpm = recorder.heartRate,
+                maxHeartRate = maxHeartRate,
+                modifier = Modifier.sizeIn(maxWidth = 560.dp, maxHeight = 560.dp),
+                staleSeconds = staleSeconds,
+            )
         } else {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(stringResource(R.string.label_heart_rate), style = MaterialTheme.typography.titleSmall)
@@ -271,7 +272,7 @@ private fun PulseSlot(
                     fontWeight = FontWeight.SemiBold,
                 )
                 Text(
-                    stringResource(if (hasSource) R.string.workout_zones_hint else R.string.workout_pick_pulse),
+                    stringResource(R.string.workout_zones_hint),
                     style = MaterialTheme.typography.bodyMedium,
                     textAlign = TextAlign.Center,
                 )
@@ -294,6 +295,7 @@ private fun metricValue(metric: Metric, sample: WorkoutSample?, type: MachineTyp
         Metric.POWER -> sample.powerWatts.toString() to "W"
         Metric.ENERGY -> sample.energyKcal.toString() to "kcal"
         Metric.ELAPSED_TIME -> formatDuration(sample.elapsedSeconds) to null
+        Metric.HEART_RATE -> (sample.heartRate?.toString() ?: NO_VALUE) to "bpm"
     }
 }
 

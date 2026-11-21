@@ -47,7 +47,7 @@ data class MachineProfile(
             name = name,
             type = MachineType.CROSS_TRAINER,
             status = ProfileStatus.SUPPORTED,
-            metrics = Metric.entries.toSet(),
+            metrics = Metric.entries.toSet() - Metric.HEART_RATE,
             declaredMetrics = emptySet(),
         )
     }
@@ -128,6 +128,7 @@ object ProfileBuilder {
             if (has(7)) add(Metric.RESISTANCE)
             if (has(8)) add(Metric.STRIDES)
             if (has(9)) add(Metric.ENERGY)
+            if (has(10)) add(Metric.HEART_RATE)
             if (has(12)) add(Metric.ELAPSED_TIME)
             if (has(14)) add(Metric.POWER)
         }

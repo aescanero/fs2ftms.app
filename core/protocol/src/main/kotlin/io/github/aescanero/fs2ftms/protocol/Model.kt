@@ -13,6 +13,8 @@ data class WorkoutSample(
     val averageSpeedKmh: Double? = null,
     val resistanceLevel: Double? = null,
     val averagePowerWatts: Int? = null,
+    /** Pulso medido por la propia máquina (sensores de agarre o banda emparejada); null si no lo envía. */
+    val heartRate: Int? = null,
 )
 
 fun ByteArray.toHex(): String = joinToString(" ") { "%02X".format(it) }

@@ -135,6 +135,15 @@ class RecorderService : Service() {
         accumulator = totals
         paused = false
         fun record(raw: WorkoutSample) {
+            if (heartRateClient == null) {
+                raw.heartRate?.let { bpm ->
+                    lastHeartRate = bpm
+                    lastHeartRateAt = SystemClock.elapsedRealtime()
+                    container.recorder.update {
+                        it.copy(heartRate = bpm, heartRateAtMs = lastHeartRateAt, heartRateConnected = true)
+                    }
+                }
+            }
             // En pausa se descartan las muestras; al reanudar, el acumulador continúa donde estaba.
             if (paused) {
                 lastSampleAt = 0L
