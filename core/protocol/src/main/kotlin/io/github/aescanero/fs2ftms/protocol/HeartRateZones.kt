@@ -1,12 +1,12 @@
 package io.github.aescanero.fs2ftms.protocol
 
-/** Zonas de entrenamiento por porcentaje de la frecuencia cardíaca máxima. */
+/** Zonas de entrenamiento por porcentaje de la frecuencia cardíaca máxima. `label` es solo para registros; la interfaz usa recursos traducidos. */
 enum class HeartRateZone(val number: Int, val label: String, val lowerPercent: Int, val upperPercent: Int) {
-    RECOVERY(1, "Recuperación", 50, 60),
-    LIGHT_AEROBIC(2, "Aeróbica ligera", 60, 70),
-    AEROBIC(3, "Aeróbica", 70, 80),
-    ANAEROBIC(4, "Anaeróbica", 80, 90),
-    MAXIMUM(5, "Máxima", 90, 100),
+    RECOVERY(1, "Recovery", 50, 60),
+    LIGHT_AEROBIC(2, "Light aerobic", 60, 70),
+    AEROBIC(3, "Aerobic", 70, 80),
+    ANAEROBIC(4, "Anaerobic", 80, 90),
+    MAXIMUM(5, "Maximum", 90, 100),
 }
 
 class HeartRateZones(val maxHeartRate: Int) {

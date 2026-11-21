@@ -48,27 +48,27 @@ data class GattDump(
     val error: String?,
 ) {
     fun toText(): String = buildString {
-        appendLine("${scan?.name ?: "(sin nombre)"}  $address")
+        appendLine("${scan?.name ?: "(unnamed)"}  $address")
         scan?.let {
-            appendLine("Anuncio: ${it.rawHex}")
-            if (it.serviceUuids.isNotEmpty()) appendLine("Servicios anunciados: ${it.serviceUuids.joinToString()}")
+            appendLine("Advertisement: ${it.rawHex}")
+            if (it.serviceUuids.isNotEmpty()) appendLine("Advertised services: ${it.serviceUuids.joinToString()}")
             it.serviceData.forEach { (k, v) -> appendLine("Service data $k: $v") }
-            it.manufacturerData.forEach { (k, v) -> appendLine("Fabricante $k: $v") }
+            it.manufacturerData.forEach { (k, v) -> appendLine("Manufacturer $k: $v") }
         }
-        appendLine("MTU: ${mtu ?: "sin negociar"}")
+        appendLine("MTU: ${mtu ?: "not negotiated"}")
         error?.let { appendLine("ERROR: $it") }
         services.forEach { service ->
             appendLine("■ ${service.uuid}")
             service.characteristics.forEach { c ->
                 appendLine("  ├ ${c.uuid} [${c.properties.joinToString(",")}]")
-                c.value?.let { appendLine("  │   valor: ${it.ifEmpty { "(vacío)" }}") }
-                c.error?.let { appendLine("  │   lectura: $it") }
+                c.value?.let { appendLine("  │   value: ${it.ifEmpty { "(empty)" }}") }
+                c.error?.let { appendLine("  │   read: $it") }
                 c.descriptors.forEach { d -> appendLine("  │   desc ${d.uuid}: ${d.value ?: "—"}") }
             }
         }
-        appendLine("Notificaciones recibidas: ${notifications.size}")
+        appendLine("Notifications received: ${notifications.size}")
         notifications.groupBy { it.uuid }.forEach { (uuid, list) ->
-            appendLine("  $uuid ×${list.size}, última: ${list.last().value}")
+            appendLine("  $uuid ×${list.size}, last: ${list.last().value}")
         }
     }
 

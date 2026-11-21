@@ -57,7 +57,7 @@ class GattNotifyClient(
                 val subscribed = runSession()
                 failures = if (subscribed) 0 else failures + 1
                 val wait = BACKOFF_SECONDS[failures.coerceAtMost(BACKOFF_SECONDS.size - 1)]
-                listener.onState("Reintento de conexión en $wait s", false)
+                listener.onState("Reconnecting in $wait s", false)
                 delay(wait * 1000L)
             }
         }
@@ -97,13 +97,13 @@ class GattNotifyClient(
     private suspend fun runSession(): Boolean {
         val adapter = manager?.adapter
         if (adapter == null || !adapter.isEnabled) {
-            listener.onState("Bluetooth desactivado", false)
+            listener.onState("Bluetooth is off", false)
             return false
         }
         val device: BluetoothDevice = try {
             adapter.getRemoteDevice(address)
         } catch (e: IllegalArgumentException) {
-            listener.onState("Dirección no válida: $address", false)
+            listener.onState("Invalid address: $address", false)
             return false
         }
         val events = Channel<Ev>(Channel.UNLIMITED)
@@ -131,36 +131,36 @@ class GattNotifyClient(
         var subscribed = false
         var gatt: BluetoothGatt? = null
         try {
-            listener.onState("Conectando…", false)
+            listener.onState("Connecting…", false)
             val link = device.connectGatt(context, false, callback, BluetoothDevice.TRANSPORT_LE)
             if (link == null) {
-                listener.onState("No se pudo iniciar la conexión", false)
+                listener.onState("Could not start the connection", false)
                 return false
             }
             gatt = link
             if (await(events, Ev.Conn::class.java, 35000) == null) {
-                listener.onState("Sin respuesta (¿apagado o conectado a otra app?)", false)
+                listener.onState("No response (off, or connected to another app?)", false)
                 return false
             }
             if (!link.discoverServices() || await(events, Ev.Services::class.java, 20000) == null) {
-                listener.onState("No se pudieron descubrir los servicios", false)
+                listener.onState("Could not discover services", false)
                 return false
             }
             val gattService = link.getService(service)
             val required = gattService?.getCharacteristic(characteristics.first())
             if (required == null) {
-                listener.onState("El dispositivo no ofrece ${FtmsUuids.display(characteristics.first())}", false)
+                listener.onState("The device does not offer ${FtmsUuids.display(characteristics.first())}", false)
                 return false
             }
             if (!subscribe(link, events, required)) {
-                listener.onState("Suscripción rechazada a ${FtmsUuids.display(required.uuid)}", false)
+                listener.onState("Subscription rejected for ${FtmsUuids.display(required.uuid)}", false)
                 return false
             }
             subscribed = true
             characteristics.drop(1).forEach { uuid ->
                 gattService.getCharacteristic(uuid)?.let { subscribe(link, events, it) }
             }
-            listener.onState("Conectado: recibiendo datos", true)
+            listener.onState("Connected: receiving data", true)
             while (true) {
                 val event = events.receive()
                 if (event is Ev.Conn && event.newState == BluetoothProfile.STATE_DISCONNECTED) {
@@ -168,7 +168,7 @@ class GattNotifyClient(
                 }
             }
         } catch (e: LinkLost) {
-            listener.onState("Conexión perdida (estado ${e.status})", false)
+            listener.onState("Connection lost (status ${e.status})", false)
         } finally {
             runCatching { gatt?.disconnect() }
             runCatching { gatt?.close() }

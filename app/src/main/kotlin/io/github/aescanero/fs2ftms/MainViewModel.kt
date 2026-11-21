@@ -182,15 +182,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun exportSessionIntent(): Intent? {
         val current = _detail.value ?: return null
         val json = Sessions.toJson(current.session, current.samples)
-        return shareJson("fs2ftms-sesion-${stamp(current.session.startedAtMs)}", json, "Exportar sesión")
+        return shareJson("fs2ftms-sesion-${stamp(current.session.startedAtMs)}", json, getApplication<Application>().getString(R.string.share_session))
     }
 
     fun exportDumpIntent(): Intent? {
         val result = container.inspector.dump.value.result ?: return null
         val label = (result.scan?.name ?: result.address).replace(Regex("[^A-Za-z0-9_-]"), "_")
-        return shareJson("fs2ftms-volcado-$label-${stamp()}", result.toJson(device()), "Exportar volcado GATT")
+        return shareJson("fs2ftms-volcado-$label-${stamp()}", result.toJson(device()), getApplication<Application>().getString(R.string.share_dump))
     }
 
     fun exportEventsIntent(): Intent =
-        shareJson("fs2ftms-eventos-${stamp()}", container.eventLog.toJson(device()), "Exportar eventos")
+        shareJson("fs2ftms-eventos-${stamp()}", container.eventLog.toJson(device()), getApplication<Application>().getString(R.string.share_events))
 }

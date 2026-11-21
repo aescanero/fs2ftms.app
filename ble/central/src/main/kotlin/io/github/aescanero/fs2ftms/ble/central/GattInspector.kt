@@ -96,7 +96,7 @@ class GattInspector(private val context: Context, private val scope: CoroutineSc
         }
 
         override fun onScanFailed(errorCode: Int) {
-            _scan.update { it.copy(scanning = false, error = "El escaneo falló (código $errorCode)") }
+            _scan.update { it.copy(scanning = false, error = "Scan failed (code $errorCode)") }
         }
     }
 
@@ -114,7 +114,7 @@ class GattInspector(private val context: Context, private val scope: CoroutineSc
         if (scanJob?.isActive == true) return
         val scanner = manager?.adapter?.takeIf { it.isEnabled }?.bluetoothLeScanner
         if (scanner == null) {
-            _scan.value = ScanState(error = "Bluetooth desactivado o no disponible")
+            _scan.value = ScanState(error = "Bluetooth is off or unavailable")
             return
         }
         synchronized(lock) {
@@ -125,7 +125,7 @@ class GattInspector(private val context: Context, private val scope: CoroutineSc
         try {
             scanner.startScan(null, settings, scanCallback)
         } catch (e: SecurityException) {
-            _scan.value = ScanState(error = "Permiso de escaneo denegado")
+            _scan.value = ScanState(error = "Scan permission denied")
             return
         }
         _scan.value = ScanState(scanning = true)
@@ -197,12 +197,12 @@ class GattInspector(private val context: Context, private val scope: CoroutineSc
             if (gatt.readCharacteristic(c)) {
                 val read = await(events, Ev.CharRead::class.java, 5000)
                 when {
-                    read == null -> error = "sin respuesta"
+                    read == null -> error = "no response"
                     read.status == BluetoothGatt.GATT_SUCCESS -> value = read.value.toHex()
-                    else -> error = "estado ${read.status}"
+                    else -> error = "status ${read.status}"
                 }
             } else {
-                error = "lectura rechazada"
+                error = "read rejected"
             }
         }
         val descriptors = ArrayList<DescriptorDump>()
@@ -211,9 +211,9 @@ class GattInspector(private val context: Context, private val scope: CoroutineSc
             if (gatt.readDescriptor(d)) {
                 val read = await(events, Ev.DescRead::class.java, 3000)
                 descriptorValue = when {
-                    read == null -> "sin respuesta"
+                    read == null -> "no response"
                     read.status == BluetoothGatt.GATT_SUCCESS -> read.value.toHex()
-                    else -> "estado ${read.status}"
+                    else -> "status ${read.status}"
                 }
             }
             descriptors.add(DescriptorDump(FtmsUuids.display(d.uuid), descriptorValue))
@@ -284,18 +284,18 @@ class GattInspector(private val context: Context, private val scope: CoroutineSc
             }
         }
 
-        _dump.value = DumpState(running = true, status = "Conectando…")
+        _dump.value = DumpState(running = true, status = "Connecting…")
         var mtu: Int? = null
         var services: List<ServiceDump> = emptyList()
         var error: String? = null
         var gatt: BluetoothGatt? = null
         try {
             val link = device.connectGatt(context, false, callback, BluetoothDevice.TRANSPORT_LE)
-                ?: throw IllegalStateException("No se pudo iniciar la conexión")
+                ?: throw IllegalStateException("Could not start the connection")
             gatt = link
             val connected = await(events, Ev.Conn::class.java, 15000)
-                ?: throw IllegalStateException("Tiempo agotado al conectar")
-            note("Conectado (estado ${connected.status})")
+                ?: throw IllegalStateException("Timed out while connecting")
+            note("Connected (status ${connected.status})")
 
             if (link.requestMtu(247)) {
                 await(events, Ev.Mtu::class.java, 4000)?.let {
@@ -304,14 +304,14 @@ class GattInspector(private val context: Context, private val scope: CoroutineSc
                 }
             }
 
-            if (!link.discoverServices()) throw IllegalStateException("Descubrimiento de servicios rechazado")
+            if (!link.discoverServices()) throw IllegalStateException("Service discovery rejected")
             val discovered = await(events, Ev.Services::class.java, 20000)
-                ?: throw IllegalStateException("Tiempo agotado al descubrir servicios")
-            note("Servicios descubiertos: ${link.services.size} (estado ${discovered.status})")
+                ?: throw IllegalStateException("Timed out while discovering services")
+            note("Services discovered: ${link.services.size} (status ${discovered.status})")
 
             val collected = ArrayList<ServiceDump>()
             for (service in link.services) {
-                note("Leyendo ${FtmsUuids.display(service.uuid)}…")
+                note("Reading ${FtmsUuids.display(service.uuid)}…")
                 val characteristics = ArrayList<CharacteristicDump>()
                 for (c in service.characteristics) characteristics.add(dumpCharacteristic(link, events, c))
                 collected.add(
@@ -341,10 +341,10 @@ class GattInspector(private val context: Context, private val scope: CoroutineSc
                     val name = FtmsUuids.display(c.uuid)
                     if (code == BluetoothStatusCodes.SUCCESS) {
                         val written = await(events, Ev.DescWrite::class.java, 4000)
-                        note("Suscripción a $name: ${written?.let { "estado ${it.status}" } ?: "sin respuesta"}")
+                        note("Subscription to $name: ${written?.let { "status ${it.status}" } ?: "no response"}")
                         if (written?.status == BluetoothGatt.GATT_SUCCESS) subscribed++
                     } else {
-                        note("Suscripción a $name rechazada (código $code)")
+                        note("Subscription to $name rejected (code $code)")
                     }
                 }
             }
@@ -352,7 +352,7 @@ class GattInspector(private val context: Context, private val scope: CoroutineSc
             if (subscribed > 0) {
                 for (remaining in listenSeconds downTo 1) {
                     _dump.update {
-                        it.copy(status = "Escuchando $subscribed características… $remaining s (usa la máquina)")
+                        it.copy(status = "Listening to $subscribed characteristics… $remaining s (use the machine)")
                     }
                     delay(1000)
                     val event = events.tryReceive().getOrNull()
@@ -361,13 +361,13 @@ class GattInspector(private val context: Context, private val scope: CoroutineSc
                     }
                 }
             }
-            note("Volcado completo: ${notifications.size} notificaciones")
+            note("Dump complete: ${notifications.size} notifications")
         } catch (e: CancellationException) {
-            error = "Cancelado"
+            error = "Cancelled"
             throw e
         } catch (e: LinkLost) {
-            error = "Enlace perdido (estado ${e.status})"
-            note("Enlace perdido (estado ${e.status})")
+            error = "Link lost (status ${e.status})"
+            note("Link lost (status ${e.status})")
         } catch (e: Exception) {
             error = e.message ?: e.javaClass.simpleName
             note("Error: $error")
@@ -383,7 +383,7 @@ class GattInspector(private val context: Context, private val scope: CoroutineSc
                 log = log.toList(),
                 error = error,
             )
-            _dump.value = DumpState(running = false, status = error ?: "Volcado completo", result = result)
+            _dump.value = DumpState(running = false, status = error ?: "Dump complete", result = result)
         }
     }
 

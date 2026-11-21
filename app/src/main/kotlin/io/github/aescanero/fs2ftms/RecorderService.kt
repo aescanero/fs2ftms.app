@@ -83,12 +83,12 @@ class RecorderService : Service() {
                 ServiceInfo.FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE,
             )
         } catch (e: Exception) {
-            container.recorder.value = RecorderState(error = "No se pudo iniciar la grabación: ${e.message}")
+            container.recorder.value = RecorderState(error = getString(R.string.error_start_recording, e.message.orEmpty()))
             stopSelf()
             return
         }
         if (machineAddress == null && !demo) {
-            container.recorder.value = RecorderState(error = "No hay máquina elegida")
+            container.recorder.value = RecorderState(error = getString(R.string.error_no_machine))
             ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE)
             stopSelf()
             return
@@ -105,7 +105,7 @@ class RecorderService : Service() {
         val queue = Channel<suspend () -> Unit>(Channel.UNLIMITED)
         writes = queue
         writer = container.scope.launch(Dispatchers.IO) {
-            for (write in queue) runCatching { write() }.onFailure { log.add("Grabación", "Error al guardar: ${it.message}") }
+            for (write in queue) runCatching { write() }.onFailure { log.add("Recorder", "Save error: ${it.message}") }
         }
 
         val parser = CrossTrainerDataParser()
@@ -142,7 +142,7 @@ class RecorderService : Service() {
         }
 
         if (demo || machineAddress == null) {
-            log.add(DemoWorkout.NAME, "Sesión simulada iniciada")
+            log.add(DemoWorkout.NAME, "Simulated session started")
             container.recorder.update { it.copy(machineConnected = true, heartRateConnected = true) }
             val generator = DemoWorkout(settings.maxHeartRate ?: 180)
             demoJob = scope.launch {
@@ -247,7 +247,7 @@ class RecorderService : Service() {
         paused = value
         if (!value) accumulator?.rebase()
         container.recorder.update { it.copy(paused = value) }
-        container.eventLog.add("Grabación", if (value) "Sesión en pausa" else "Sesión reanudada")
+        container.eventLog.add("Recorder", if (value) "Session paused" else "Session resumed")
     }
 
     private fun release() {

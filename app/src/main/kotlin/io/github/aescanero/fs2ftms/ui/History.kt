@@ -56,10 +56,13 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import io.github.aescanero.fs2ftms.R
 import io.github.aescanero.fs2ftms.SessionDetail
 import io.github.aescanero.fs2ftms.data.KcalSource
 import io.github.aescanero.fs2ftms.data.SampleEntity
@@ -71,7 +74,7 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-private fun dateFormat() = SimpleDateFormat("EEE d MMM yyyy, HH:mm", Locale.forLanguageTag("es-ES"))
+private fun dateFormat() = SimpleDateFormat("EEE d MMM yyyy, HH:mm", Locale.getDefault())
 
 private fun belowZoneColor(dark: Boolean) = if (dark) Color(0xFF37474F) else Color(0xFFCFD8DC)
 
@@ -91,10 +94,10 @@ internal fun HistoryList(sessions: List<SessionEntity>, onOpen: (Long) -> Unit, 
                 modifier = Modifier.size(48.dp),
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            Text("Aún no hay sesiones", style = MaterialTheme.typography.titleMedium)
-            Text("Aparecerán aquí al finalizar un entreno.", style = MaterialTheme.typography.bodyMedium)
+            Text(stringResource(R.string.history_empty_title), style = MaterialTheme.typography.titleMedium)
+            Text(stringResource(R.string.history_empty_body), style = MaterialTheme.typography.bodyMedium)
             FilledTonalButton(onClick = onGoToWorkout, modifier = Modifier.heightIn(min = 48.dp)) {
-                Text("Ir a Entreno")
+                Text(stringResource(R.string.history_go_to_workout))
             }
         }
         return
@@ -103,9 +106,9 @@ internal fun HistoryList(sessions: List<SessionEntity>, onOpen: (Long) -> Unit, 
     LazyColumn(Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
         item {
             Column(Modifier.padding(top = 16.dp, bottom = 8.dp)) {
-                Text("Historial", style = MaterialTheme.typography.headlineSmall)
+                Text(stringResource(R.string.tab_history), style = MaterialTheme.typography.headlineSmall)
                 Text(
-                    if (sessions.size == 1) "1 sesión" else "${sessions.size} sesiones",
+                    pluralStringResource(R.plurals.history_sessions, sessions.size, sessions.size),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -136,7 +139,7 @@ private fun SessionRow(session: SessionEntity, date: String, onOpen: (Long) -> U
                         shape = MaterialTheme.shapes.small,
                     ) {
                         Text(
-                            DemoWorkout.NAME,
+                            stringResource(R.string.demo),
                             style = MaterialTheme.typography.labelMedium,
                             modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
                         )
@@ -148,12 +151,12 @@ private fun SessionRow(session: SessionEntity, date: String, onOpen: (Long) -> U
                 MiniFigure(formatDuration(session.durationSeconds), null)
                 MiniFigure(distance, distanceUnit)
                 MiniFigure(session.kcal.toString(), "kcal")
-                session.averageHeartRate?.let { MiniFigure(it.toString(), "ppm") }
+                session.averageHeartRate?.let { MiniFigure(it.toString(), stringResource(R.string.unit_bpm)) }
             }
         }
         Icon(
             Icons.AutoMirrored.Filled.KeyboardArrowRight,
-            contentDescription = "Abrir sesión",
+            contentDescription = stringResource(R.string.history_open_session),
             tint = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
@@ -192,20 +195,20 @@ internal fun SessionDetailScreen(
     Column(Modifier.fillMaxSize()) {
         Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp), verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = onBack) {
-                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Volver al historial")
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.history_back))
             }
             Column(Modifier.weight(1f)) {
                 Text(format.format(Date(session.startedAtMs)), style = MaterialTheme.typography.titleMedium)
                 session.machineName?.let {
                     Text(
-                        it,
+                        machineLabel(it),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }
             IconButton(onClick = { confirmDelete = true }) {
-                Icon(Icons.Filled.Delete, contentDescription = "Borrar sesión", tint = MaterialTheme.colorScheme.error)
+                Icon(Icons.Filled.Delete, contentDescription = stringResource(R.string.history_delete), tint = MaterialTheme.colorScheme.error)
             }
         }
 
@@ -248,14 +251,14 @@ internal fun SessionDetailScreen(
         var text by remember { mutableStateOf(session.manualKcal?.toString().orEmpty()) }
         AlertDialog(
             onDismissRequest = { editKcal = false },
-            title = { Text("Corregir calorías") },
+            title = { Text(stringResource(R.string.history_kcal_edit_title)) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("Indica las calorías de esta sesión. Déjalo vacío para volver al valor calculado.")
+                    Text(stringResource(R.string.history_kcal_edit_body))
                     OutlinedTextField(
                         value = text,
                         onValueChange = { text = it.filter(Char::isDigit).take(5) },
-                        label = { Text("Calorías") },
+                        label = { Text(stringResource(R.string.metric_calories)) },
                         suffix = { Text("kcal") },
                         singleLine = true,
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
@@ -268,7 +271,7 @@ internal fun SessionDetailScreen(
                         editKcal = false
                         onSetManualKcal(text.toIntOrNull())
                     },
-                ) { Text("Guardar") }
+                ) { Text(stringResource(R.string.common_save)) }
             },
             dismissButton = { TextButton(onClick = { editKcal = false }) { Text("Cancelar") } },
         )
@@ -277,8 +280,8 @@ internal fun SessionDetailScreen(
     if (confirmDelete) {
         AlertDialog(
             onDismissRequest = { confirmDelete = false },
-            title = { Text("¿Borrar esta sesión?") },
-            text = { Text("Se eliminarán sus datos de este dispositivo. No se puede deshacer.") },
+            title = { Text(stringResource(R.string.history_delete_title)) },
+            text = { Text(stringResource(R.string.history_delete_body)) },
             confirmButton = {
                 Button(
                     onClick = {
@@ -289,7 +292,7 @@ internal fun SessionDetailScreen(
                         containerColor = MaterialTheme.colorScheme.error,
                         contentColor = MaterialTheme.colorScheme.onError,
                     ),
-                ) { Text("Borrar") }
+                ) { Text(stringResource(R.string.common_delete)) }
             },
             dismissButton = { TextButton(onClick = { confirmDelete = false }) { Text("Cancelar") } },
         )
@@ -299,7 +302,7 @@ internal fun SessionDetailScreen(
 @Composable
 private fun ExportButton(onExport: () -> Unit) {
     Button(onClick = onExport, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
-        Text("Exportar sesión (JSON)")
+        Text(stringResource(R.string.history_export))
     }
 }
 
@@ -307,47 +310,51 @@ private fun ExportButton(onExport: () -> Unit) {
 private fun Summary(detail: SessionDetail, maxHeartRate: Int?, onEditKcal: () -> Unit) {
     val session = detail.session
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        KeyFigure("Tiempo", formatDuration(session.durationSeconds), Modifier.weight(1f))
-        KeyFigure("Distancia", formatDistance(session.distanceMeters), Modifier.weight(1f))
+        KeyFigure(stringResource(R.string.metric_time), formatDuration(session.durationSeconds), Modifier.weight(1f))
+        KeyFigure(stringResource(R.string.metric_distance), formatDistance(session.distanceMeters), Modifier.weight(1f))
     }
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         val kcalSource = when (session.kcalSource) {
-            KcalSource.MANUAL -> "corregidas"
-            KcalSource.HEART_RATE -> "por pulso"
-            KcalSource.MACHINE -> "máquina"
+            KcalSource.MANUAL -> stringResource(R.string.kcal_source_manual)
+            KcalSource.HEART_RATE -> stringResource(R.string.kcal_source_heart_rate)
+            KcalSource.MACHINE -> stringResource(R.string.kcal_source_machine)
         }
-        KeyFigure("Calorías ($kcalSource)", "${session.kcal} kcal", Modifier.weight(1f))
-        KeyFigure("Pulso medio", session.averageHeartRate?.let { "$it ppm" } ?: "—", Modifier.weight(1f))
+        KeyFigure(stringResource(R.string.history_kcal_with_source, kcalSource), "${session.kcal} kcal", Modifier.weight(1f))
+        KeyFigure(
+            stringResource(R.string.history_avg_heart_rate),
+            session.averageHeartRate?.let { stringResource(R.string.value_bpm, it) } ?: "—",
+            Modifier.weight(1f),
+        )
     }
 
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(horizontal = 12.dp, vertical = 4.dp)) {
-            session.maxHeartRate?.let { AverageRow("Pulso máximo", "$it ppm") }
-            AverageRow("Cadencia media", "${session.averageCadence} /min")
-            AverageRow("Velocidad media", "${"%.1f".format(session.averageSpeedKmh)} km/h")
-            AverageRow("Potencia media", "${session.averagePowerWatts} W")
-            session.averageResistance?.let { AverageRow("Resistencia media", "%.1f".format(it)) }
-            AverageRow("Zancadas", "%.0f".format(session.strideCount))
+            session.maxHeartRate?.let { AverageRow(stringResource(R.string.history_max_heart_rate), stringResource(R.string.value_bpm, it)) }
+            AverageRow(stringResource(R.string.history_avg_cadence), "${session.averageCadence} /min")
+            AverageRow(stringResource(R.string.history_avg_speed), "${"%.1f".format(session.averageSpeedKmh)} km/h")
+            AverageRow(stringResource(R.string.history_avg_power), "${session.averagePowerWatts} W")
+            session.averageResistance?.let { AverageRow(stringResource(R.string.history_avg_resistance), "%.1f".format(it)) }
+            AverageRow(stringResource(R.string.metric_strides), "%.0f".format(session.strideCount))
         }
     }
 
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(horizontal = 12.dp, vertical = 4.dp)) {
-            AverageRow("Calorías según la máquina", "${session.machineKcal} kcal")
+            AverageRow(stringResource(R.string.history_kcal_machine), "${session.machineKcal} kcal")
             AverageRow(
-                "Calorías calculadas por pulso",
-                session.estimatedKcal?.let { "$it kcal" } ?: "sin datos",
+                stringResource(R.string.history_kcal_estimated),
+                session.estimatedKcal?.let { "$it kcal" } ?: stringResource(R.string.common_no_data),
             )
-            session.manualKcal?.let { AverageRow("Corrección manual", "$it kcal") }
+            session.manualKcal?.let { AverageRow(stringResource(R.string.history_kcal_manual), "$it kcal") }
             if (session.estimatedKcal == null) {
                 Text(
-                    "Para calcularlas hacen falta pulso en la sesión y edad, peso y sexo en Ajustes.",
+                    stringResource(R.string.history_kcal_needs),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
             TextButton(onClick = onEditKcal, modifier = Modifier.heightIn(min = 48.dp)) {
-                Text("Corregir calorías a mano")
+                Text(stringResource(R.string.history_kcal_edit))
             }
         }
     }
@@ -357,7 +364,7 @@ private fun Summary(detail: SessionDetail, maxHeartRate: Int?, onEditKcal: () ->
         ZoneBreakdown(detail.samples, maxHeartRate)
     } else if (hasPulse) {
         Text(
-            "Indica tu edad o tu FC máxima en Ajustes para ver el tiempo por zona.",
+            stringResource(R.string.history_zones_hint),
             style = MaterialTheme.typography.bodySmall,
         )
     }
@@ -396,7 +403,7 @@ private fun ZoneBreakdown(samples: List<SampleEntity>, maxHeartRate: Int) {
 
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text("Tiempo por zona de pulso", style = MaterialTheme.typography.labelLarge)
+            Text(stringResource(R.string.history_time_in_zones), style = MaterialTheme.typography.labelLarge)
             Row(
                 Modifier.fillMaxWidth().height(20.dp).clip(MaterialTheme.shapes.small),
                 horizontalArrangement = Arrangement.spacedBy(2.dp),
@@ -414,7 +421,11 @@ private fun ZoneBreakdown(samples: List<SampleEntity>, maxHeartRate: Int) {
                 val seconds = totals[zone] ?: 0
                 if (seconds > 0) {
                     val color = if (zone != null) zoneColor(zone, dark) else belowZoneColor(dark)
-                    val name = if (zone != null) "Z${zone.number} ${zone.label}" else "Por debajo de Z1"
+                    val name = if (zone != null) {
+                        stringResource(R.string.zone_name, zone.number, stringResource(zoneLabelRes(zone)))
+                    } else {
+                        stringResource(R.string.zone_below)
+                    }
                     Row(Modifier.fillMaxWidth().heightIn(min = 28.dp), verticalAlignment = Alignment.CenterVertically) {
                         Box(
                             Modifier
@@ -448,7 +459,7 @@ private fun ColumnScope.Charts(samples: List<SampleEntity>, maxHeartRate: Int?, 
     val modifier = if (fill) Modifier.weight(1f) else Modifier
     if (pulse.size > 1) {
         Chart(
-            title = "Pulso (ppm)",
+            title = stringResource(R.string.chart_heart_rate),
             points = pulse,
             color = Color(0xFFEF5350),
             modifier = modifier,
@@ -457,10 +468,10 @@ private fun ColumnScope.Charts(samples: List<SampleEntity>, maxHeartRate: Int?, 
             zones = maxHeartRate?.let { HeartRateZones(it) },
         )
     }
-    Chart("Cadencia (/min)", samples.map { it.elapsedSeconds to it.cadence.toFloat() }, Color(0xFF42A5F5), modifier, fill)
-    Chart("Potencia (W)", samples.map { it.elapsedSeconds to it.powerWatts.toFloat() }, Color(0xFFFFA726), modifier, fill)
+    Chart(stringResource(R.string.chart_cadence), samples.map { it.elapsedSeconds to it.cadence.toFloat() }, Color(0xFF42A5F5), modifier, fill)
+    Chart(stringResource(R.string.chart_power), samples.map { it.elapsedSeconds to it.powerWatts.toFloat() }, Color(0xFFFFA726), modifier, fill)
     if (resistance.size > 1) {
-        Chart("Resistencia", resistance, Color(0xFF66BB6A), modifier, fill, stepped = true)
+        Chart(stringResource(R.string.metric_resistance), resistance, Color(0xFF66BB6A), modifier, fill, stepped = true)
     }
 }
 
@@ -497,7 +508,7 @@ private fun Chart(
             Row {
                 Text(title, style = MaterialTheme.typography.labelLarge, modifier = Modifier.weight(1f))
                 Text(
-                    "mín. ${"%.0f".format(dataMin)} · máx. ${"%.0f".format(dataMax)}",
+                    stringResource(R.string.chart_min_max, "%.0f".format(dataMin), "%.0f".format(dataMax)),
                     style = MaterialTheme.typography.labelMedium,
                     color = axisColor,
                 )

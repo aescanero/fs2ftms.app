@@ -38,11 +38,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import io.github.aescanero.fs2ftms.DeviceSettings
+import io.github.aescanero.fs2ftms.R
 import io.github.aescanero.fs2ftms.RecorderState
 import io.github.aescanero.fs2ftms.protocol.DemoWorkout
 import io.github.aescanero.fs2ftms.protocol.WorkoutSample
@@ -116,23 +118,23 @@ internal fun WorkoutTab(
             recorder.recording -> Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 if (recorder.paused) {
                     Button(onClick = onResume, modifier = Modifier.weight(1f).heightIn(min = 56.dp)) {
-                        Text("Reanudar", style = MaterialTheme.typography.titleMedium)
+                        Text(stringResource(R.string.workout_resume), style = MaterialTheme.typography.titleMedium)
                     }
                 } else {
                     FilledTonalButton(onClick = onPause, modifier = Modifier.weight(1f).heightIn(min = 56.dp)) {
-                        Text("Pausar", style = MaterialTheme.typography.titleMedium)
+                        Text(stringResource(R.string.workout_pause), style = MaterialTheme.typography.titleMedium)
                     }
                 }
                 OutlinedButton(
                     onClick = { confirmFinish = true },
                     modifier = Modifier.weight(1f).heightIn(min = 56.dp),
-                ) { Text("Finalizar", style = MaterialTheme.typography.titleMedium) }
+                ) { Text(stringResource(R.string.workout_finish), style = MaterialTheme.typography.titleMedium) }
             }
-            machine == null -> Text("Elige la elíptica en la pestaña Dispositivos para poder grabar.")
+            machine == null -> Text(stringResource(R.string.workout_choose_machine))
             else -> Button(
                 onClick = onStart,
                 modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp),
-            ) { Text("Iniciar sesión", style = MaterialTheme.typography.titleMedium) }
+            ) { Text(stringResource(R.string.workout_start), style = MaterialTheme.typography.titleMedium) }
         }
     }
 
@@ -140,13 +142,13 @@ internal fun WorkoutTab(
         val elapsed = recorder.sample?.let { formatDuration(it.elapsedSeconds) }
         AlertDialog(
             onDismissRequest = { confirmFinish = false },
-            title = { Text("¿Finalizar la sesión?") },
+            title = { Text(stringResource(R.string.workout_finish_title)) },
             text = {
                 Text(
                     if (elapsed != null) {
-                        "Se guardará la sesión de $elapsed."
+                        stringResource(R.string.workout_finish_body, elapsed)
                     } else {
-                        "Todavía no hay datos; no se guardará nada."
+                        stringResource(R.string.workout_finish_empty)
                     },
                 )
             },
@@ -156,9 +158,9 @@ internal fun WorkoutTab(
                         confirmFinish = false
                         onStop()
                     },
-                ) { Text("Finalizar y guardar") }
+                ) { Text(stringResource(R.string.workout_finish_save)) }
             },
-            dismissButton = { TextButton(onClick = { confirmFinish = false }) { Text("Seguir entrenando") } },
+            dismissButton = { TextButton(onClick = { confirmFinish = false }) { Text(stringResource(R.string.workout_keep_going)) } },
         )
     }
 }
@@ -176,7 +178,7 @@ private fun StatusStrip(recorder: RecorderState, machine: String?, heartRateSour
                     modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
                 ) {
                     Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Filled.Warning, contentDescription = "Error")
+                        Icon(Icons.Filled.Warning, contentDescription = stringResource(R.string.common_error))
                         Text(
                             error,
                             style = MaterialTheme.typography.bodyLarge,
@@ -184,14 +186,14 @@ private fun StatusStrip(recorder: RecorderState, machine: String?, heartRateSour
                         )
                         if (machine != null) {
                             TextButton(onClick = onRetry, modifier = Modifier.heightIn(min = 48.dp)) {
-                                Text("Reintentar")
+                                Text(stringResource(R.string.common_retry))
                             }
                         }
                     }
                 }
             }
             Text(
-                "Elíptica: ${machine ?: "sin elegir"}  ·  Pulso: ${heartRateSource ?: "sin elegir"}",
+                stringResource(R.string.workout_devices_line, machine?.let { machineLabel(it) } ?: stringResource(R.string.common_not_set), heartRateSource?.let { machineLabel(it) } ?: stringResource(R.string.common_not_set)),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -200,11 +202,11 @@ private fun StatusStrip(recorder: RecorderState, machine: String?, heartRateSour
     }
     val receiving = recorder.machineConnected && recorder.sample != null && !recorder.paused
     val status = when {
-        recorder.paused -> "En pausa"
-        !recorder.machineConnected -> "Conectando con la elíptica…"
-        recorder.sample == null -> "Esperando datos: mueve la elíptica"
-        machine == DemoWorkout.NAME -> "Grabando · demostración"
-        else -> "Grabando"
+        recorder.paused -> stringResource(R.string.status_paused)
+        !recorder.machineConnected -> stringResource(R.string.status_connecting)
+        recorder.sample == null -> stringResource(R.string.status_waiting)
+        machine == DemoWorkout.NAME -> stringResource(R.string.status_recording_demo)
+        else -> stringResource(R.string.status_recording)
     }
     val dotColor = if (receiving) Color(0xFFE53935) else MaterialTheme.colorScheme.outline
     Column {
@@ -214,7 +216,7 @@ private fun StatusStrip(recorder: RecorderState, machine: String?, heartRateSour
         }
         if (heartRateSource != null && !recorder.heartRateConnected) {
             Text(
-                "Sin pulso: inicia el entrenamiento en el reloj con la emisión activada.",
+                stringResource(R.string.status_no_pulse),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -235,14 +237,14 @@ private fun PulseSlot(recorder: RecorderState, settings: DeviceSettings, staleSe
             )
         } else {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text("Pulso", style = MaterialTheme.typography.titleSmall)
+                Text(stringResource(R.string.label_heart_rate), style = MaterialTheme.typography.titleSmall)
                 Text(
-                    recorder.heartRate?.let { "$it ppm" } ?: NO_VALUE,
+                    recorder.heartRate?.let { stringResource(R.string.value_bpm, it) } ?: NO_VALUE,
                     style = MaterialTheme.typography.displayLarge,
                     fontWeight = FontWeight.SemiBold,
                 )
                 Text(
-                    "Indica tu edad o tu FC máxima en Ajustes para ver las zonas.",
+                    stringResource(R.string.workout_zones_hint),
                     style = MaterialTheme.typography.bodyMedium,
                     textAlign = TextAlign.Center,
                 )
@@ -256,14 +258,14 @@ private fun Metrics(sample: WorkoutSample?, wide: Boolean, modifier: Modifier) {
     Column(modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(Modifier.weight(1.3f).fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             MetricTile(
-                "Tiempo",
+                stringResource(R.string.metric_time),
                 sample?.let { formatDuration(it.elapsedSeconds) } ?: NO_VALUE,
                 null,
                 PRIMARY_MAX_SIZE,
                 Modifier.weight(1.4f).fillMaxHeight(),
             )
             MetricTile(
-                "Resistencia",
+                stringResource(R.string.metric_resistance),
                 sample?.resistanceLevel?.let { "%.0f".format(it) } ?: NO_VALUE,
                 null,
                 PRIMARY_MAX_SIZE,
@@ -272,21 +274,21 @@ private fun Metrics(sample: WorkoutSample?, wide: Boolean, modifier: Modifier) {
         }
         Row(Modifier.weight(1f).fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             MetricTile(
-                "Cadencia",
+                stringResource(R.string.metric_cadence),
                 sample?.cadencePerMinute?.toString() ?: NO_VALUE,
                 "/min",
                 SECONDARY_MAX_SIZE,
                 Modifier.weight(1f).fillMaxHeight(),
             )
             MetricTile(
-                "Velocidad",
+                stringResource(R.string.metric_speed),
                 sample?.let { "%.1f".format(it.speedKmh) } ?: NO_VALUE,
                 "km/h",
                 SECONDARY_MAX_SIZE,
                 Modifier.weight(1f).fillMaxHeight(),
             )
             MetricTile(
-                "Calorías",
+                stringResource(R.string.metric_calories),
                 sample?.energyKcal?.toString() ?: NO_VALUE,
                 "kcal",
                 SECONDARY_MAX_SIZE,
@@ -295,14 +297,14 @@ private fun Metrics(sample: WorkoutSample?, wide: Boolean, modifier: Modifier) {
         }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             CompactTile(
-                "Distancia",
+                stringResource(R.string.metric_distance),
                 sample?.let { formatDistance(it.distanceMeters) } ?: NO_VALUE,
                 wide,
                 Modifier.weight(1f),
             )
-            CompactTile("Potencia", sample?.let { "${it.powerWatts} W" } ?: NO_VALUE, wide, Modifier.weight(1f))
+            CompactTile(stringResource(R.string.metric_power), sample?.let { "${it.powerWatts} W" } ?: NO_VALUE, wide, Modifier.weight(1f))
             CompactTile(
-                "Zancadas",
+                stringResource(R.string.metric_strides),
                 sample?.let { "%.0f".format(it.strideCount) } ?: NO_VALUE,
                 wide,
                 Modifier.weight(1f),

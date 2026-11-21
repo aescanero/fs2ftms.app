@@ -1,5 +1,6 @@
 package io.github.aescanero.fs2ftms.ui
 
+import androidx.annotation.StringRes
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
@@ -24,12 +25,14 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
+import io.github.aescanero.fs2ftms.R
 import io.github.aescanero.fs2ftms.protocol.HeartRateZone
 import io.github.aescanero.fs2ftms.protocol.HeartRateZones
 import kotlin.math.cos
@@ -52,6 +55,16 @@ internal fun zoneColor(zone: HeartRateZone, dark: Boolean): Color = if (dark) {
         HeartRateZone.ANAEROBIC -> Color(0xFFEF6C00)
         HeartRateZone.MAXIMUM -> Color(0xFFC62828)
     }
+}
+
+/** Nombre localizado de cada zona; el `label` del enum es solo para registros. */
+@StringRes
+internal fun zoneLabelRes(zone: HeartRateZone): Int = when (zone) {
+    HeartRateZone.RECOVERY -> R.string.zone_recovery
+    HeartRateZone.LIGHT_AEROBIC -> R.string.zone_light_aerobic
+    HeartRateZone.AEROBIC -> R.string.zone_aerobic
+    HeartRateZone.ANAEROBIC -> R.string.zone_anaerobic
+    HeartRateZone.MAXIMUM -> R.string.zone_maximum
 }
 
 private const val START_ANGLE = 135f
@@ -81,9 +94,9 @@ internal fun HeartRateGauge(
         label = "pulso",
     )
     val description = when {
-        bpm == null -> "Sin pulso"
-        current == null -> "Pulso $bpm pulsaciones por minuto, por debajo de la zona 1"
-        else -> "Pulso $bpm pulsaciones por minuto, zona ${current.number} ${current.label}"
+        bpm == null -> stringResource(R.string.gauge_no_pulse)
+        current == null -> stringResource(R.string.gauge_desc_below, bpm)
+        else -> stringResource(R.string.gauge_desc_zone, bpm, current.number, stringResource(zoneLabelRes(current)))
     }
     BoxWithConstraints(
         modifier.aspectRatio(1f).semantics { contentDescription = description },
@@ -154,11 +167,11 @@ internal fun HeartRateGauge(
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = dim),
                 maxLines = 1,
             )
-            Text("ppm", fontSize = scaled(0.055f, 14f))
+            Text(stringResource(R.string.unit_bpm), fontSize = scaled(0.055f, 14f))
             val label = when {
-                bpm == null -> "Sin pulso"
-                current == null -> "Por debajo de Z1"
-                else -> "Z${current.number} · ${current.label}"
+                bpm == null -> stringResource(R.string.gauge_no_pulse)
+                current == null -> stringResource(R.string.zone_below)
+                else -> stringResource(R.string.gauge_zone, current.number, stringResource(zoneLabelRes(current)))
             }
             val labelSize = scaled(0.055f, 16f)
             Text(
@@ -172,13 +185,13 @@ internal fun HeartRateGauge(
             )
             if (staleSeconds != null) {
                 Text(
-                    "Última lectura hace $staleSeconds s",
+                    stringResource(R.string.gauge_stale, staleSeconds),
                     fontSize = scaled(0.042f, 14f),
                     color = MaterialTheme.colorScheme.error,
                 )
             } else if (bpm != null) {
                 Text(
-                    "${bpm * 100 / maxHeartRate} % de $maxHeartRate",
+                    stringResource(R.string.gauge_percent, bpm * 100 / maxHeartRate, maxHeartRate),
                     fontSize = scaled(0.042f, 14f),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )

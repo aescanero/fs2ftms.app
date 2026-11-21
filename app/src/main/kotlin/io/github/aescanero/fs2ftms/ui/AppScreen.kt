@@ -48,6 +48,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -55,18 +56,25 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.aescanero.fs2ftms.DeviceSettings
 import io.github.aescanero.fs2ftms.MainViewModel
+import io.github.aescanero.fs2ftms.R
 import io.github.aescanero.fs2ftms.RecorderState
 import io.github.aescanero.fs2ftms.ble.central.DumpState
 import io.github.aescanero.fs2ftms.ble.central.LogEntry
 import io.github.aescanero.fs2ftms.ble.central.ScanEntry
 import io.github.aescanero.fs2ftms.ble.central.ScanState
+import io.github.aescanero.fs2ftms.protocol.DemoWorkout
 import io.github.aescanero.fs2ftms.protocol.HeartRateZone
 import io.github.aescanero.fs2ftms.protocol.HeartRateZones
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-private val tabs = listOf("Entreno", "Historial", "Dispositivos", "Ajustes")
+private val tabs = listOf(
+    R.string.tab_workout,
+    R.string.tab_history,
+    R.string.tab_devices,
+    R.string.tab_settings,
+)
 private val tabIcons = listOf(
     Icons.Filled.PlayArrow,
     Icons.AutoMirrored.Filled.List,
@@ -169,7 +177,7 @@ fun AppScreen(
                                 enabled = !locked || index == 0,
                                 onClick = { tab = index },
                                 icon = { Icon(tabIcons[index], contentDescription = null) },
-                                label = { Text(title, maxLines = 1, softWrap = false) },
+                                label = { Text(stringResource(title), maxLines = 1, softWrap = false) },
                             )
                         }
                     }
@@ -183,7 +191,7 @@ fun AppScreen(
                                 selected = tab == index,
                                 enabled = !locked || index == 0,
                                 onClick = { tab = index },
-                                text = { Text(title, maxLines = 1) },
+                                text = { Text(stringResource(title), maxLines = 1) },
                             )
                         }
                     }
@@ -197,8 +205,8 @@ fun AppScreen(
 @Composable
 internal fun PermissionRequest(onRequestPermissions: () -> Unit) {
     Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text("Faltan los permisos de Bluetooth (dispositivos cercanos).")
-        Button(onClick = onRequestPermissions) { Text("Conceder permisos") }
+        Text(stringResource(R.string.permissions_missing))
+        Button(onClick = onRequestPermissions) { Text(stringResource(R.string.permissions_grant)) }
     }
 }
 
@@ -227,34 +235,34 @@ private fun DevicesTab(
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             Text(
-                if (dump.running) "Consultando dispositivo…" else (result?.scan?.name ?: result?.address ?: ""),
+                if (dump.running) stringResource(R.string.devices_querying) else (result?.scan?.name ?: result?.address ?: ""),
                 style = MaterialTheme.typography.titleMedium,
             )
             Text(dump.status)
             if (dump.running) {
-                OutlinedButton(onClick = onCancelDump, modifier = Modifier.fillMaxWidth()) { Text("Cancelar") }
+                OutlinedButton(onClick = onCancelDump, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.common_cancel)) }
             } else if (result != null) {
                 val isMachine = result.services.any { service ->
                     service.uuid == "0x1826" && service.characteristics.any { it.uuid == "0x2ACE" }
                 }
                 val isHeartRate = result.services.any { it.uuid == "0x180D" }
                 if (isMachine) {
-                    Button(onClick = onUseAsMachine, modifier = Modifier.fillMaxWidth()) { Text("Usar como elíptica") }
+                    Button(onClick = onUseAsMachine, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.devices_use_as_machine)) }
                 }
                 if (isHeartRate) {
                     Button(onClick = onUseAsHeartRate, modifier = Modifier.fillMaxWidth()) {
-                        Text("Usar como fuente de pulso")
+                        Text(stringResource(R.string.devices_use_as_heart_rate))
                     }
                 }
                 if (!isMachine && !isHeartRate) {
-                    Text("Este dispositivo no ofrece datos de elíptica (0x2ACE) ni de pulso (0x180D).")
+                    Text(stringResource(R.string.devices_unsupported))
                 }
                 if (settings.debug) {
                     OutlinedButton(onClick = onShareDump, modifier = Modifier.fillMaxWidth()) {
-                        Text("Exportar volcado (JSON)")
+                        Text(stringResource(R.string.devices_export_dump))
                     }
                 }
-                OutlinedButton(onClick = onClearDump, modifier = Modifier.fillMaxWidth()) { Text("Volver") }
+                OutlinedButton(onClick = onClearDump, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.common_back)) }
                 if (settings.debug) {
                     Text(
                         result.toText(),
@@ -270,19 +278,18 @@ private fun DevicesTab(
     LazyColumn(Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
         item {
             Column(Modifier.padding(vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                SelectedDevice("Elíptica", settings.machineName ?: settings.machineAddress, onClearMachine)
-                SelectedDevice("Pulso", settings.heartRateName ?: settings.heartRateAddress, onClearHeartRate)
+                SelectedDevice(stringResource(R.string.label_machine), settings.machineName ?: settings.machineAddress, onClearMachine)
+                SelectedDevice(stringResource(R.string.label_heart_rate), settings.heartRateName ?: settings.heartRateAddress, onClearHeartRate)
                 Text(
-                    "Busca y pulsa un dispositivo para asignarlo. Para el reloj, inicia antes un " +
-                        "entrenamiento con la emisión de pulso activada. Cierra FitShow mientras buscas la elíptica.",
+                    stringResource(R.string.devices_help),
                     style = MaterialTheme.typography.bodySmall,
                 )
                 if (scan.scanning) {
                     OutlinedButton(onClick = onStopScan, modifier = Modifier.fillMaxWidth()) {
-                        Text("Detener búsqueda (${scan.entries.size})")
+                        Text(stringResource(R.string.devices_stop_scan, scan.entries.size))
                     }
                 } else {
-                    Button(onClick = onStartScan, modifier = Modifier.fillMaxWidth()) { Text("Buscar dispositivos") }
+                    Button(onClick = onStartScan, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.devices_scan)) }
                 }
                 scan.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
             }
@@ -294,9 +301,9 @@ private fun DevicesTab(
         if (settings.debug) {
             item {
                 Column(Modifier.padding(vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("Depuración: eventos de conexión (${events.size})", fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.devices_debug_events, events.size), fontWeight = FontWeight.Bold)
                     OutlinedButton(onClick = onShareEvents, modifier = Modifier.fillMaxWidth()) {
-                        Text("Exportar eventos (JSON)")
+                        Text(stringResource(R.string.devices_export_events))
                     }
                 }
             }
@@ -314,21 +321,28 @@ private fun DevicesTab(
 @Composable
 private fun SelectedDevice(label: String, name: String?, onClear: () -> Unit) {
     Row(verticalAlignment = Alignment.CenterVertically) {
-        Text("$label: ${name ?: "sin elegir"}", Modifier.weight(1f), fontWeight = FontWeight.Bold)
-        if (name != null) TextButton(onClick = onClear) { Text("Quitar") }
+        Text(
+            stringResource(R.string.devices_selected, label, name ?: stringResource(R.string.common_not_set)),
+            Modifier.weight(1f),
+            fontWeight = FontWeight.Bold,
+        )
+        if (name != null) TextButton(onClick = onClear) { Text(stringResource(R.string.devices_remove)) }
     }
 }
 
 @Composable
 private fun ScanRow(entry: ScanEntry, onInspect: (String) -> Unit) {
     Column(Modifier.fillMaxWidth().clickable { onInspect(entry.address) }.padding(vertical = 10.dp)) {
+        val machineTag = stringResource(R.string.devices_tag_machine)
+        val heartRateTag = stringResource(R.string.devices_tag_heart_rate)
+        val notConnectableTag = stringResource(R.string.devices_tag_not_connectable)
         val tags = buildList {
-            if (entry.hasFtms) add("máquina")
-            if ("0x180D" in entry.serviceUuids) add("pulso")
-            if (!entry.connectable) add("no conectable")
+            if (entry.hasFtms) add(machineTag)
+            if ("0x180D" in entry.serviceUuids) add(heartRateTag)
+            if (!entry.connectable) add(notConnectableTag)
         }
         Text(
-            (entry.name ?: "(sin nombre)") + if (tags.isEmpty()) "" else "  ·  " + tags.joinToString(" · "),
+            (entry.name ?: stringResource(R.string.devices_unnamed)) + if (tags.isEmpty()) "" else "  ·  " + tags.joinToString(" · "),
             fontWeight = if (tags.isNotEmpty() && entry.connectable) FontWeight.Bold else FontWeight.Normal,
         )
         Text(
@@ -348,6 +362,10 @@ internal fun formatDuration(seconds: Int): String {
 
 internal fun formatDistance(meters: Int): String =
     if (meters >= 1000) "%.2f km".format(meters / 1000.0) else "$meters m"
+
+/** Nombre de máquina para mostrar: el marcador interno de las sesiones simuladas se traduce. */
+@Composable
+internal fun machineLabel(name: String): String = if (name == DemoWorkout.NAME) stringResource(R.string.demo) else name
 
 /** Distancia separada en valor y unidad, para mostrarlos con tamaños distintos. */
 internal fun distanceParts(meters: Int): Pair<String, String> =

@@ -29,11 +29,13 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import io.github.aescanero.fs2ftms.DeviceSettings
+import io.github.aescanero.fs2ftms.R
 import io.github.aescanero.fs2ftms.protocol.HeartRateZone
 import io.github.aescanero.fs2ftms.protocol.HeartRateZones
 
@@ -86,7 +88,7 @@ internal fun SettingsTab(
 
 @Composable
 private fun ZonesSection(settings: DeviceSettings, onAge: (Int?) -> Unit, onMaxHeartRate: (Int?) -> Unit) {
-    Text("Zonas de pulso", style = MaterialTheme.typography.titleMedium)
+    Text(stringResource(R.string.settings_zones), style = MaterialTheme.typography.titleMedium)
     var ageText by rememberSaveable { mutableStateOf(settings.age?.toString().orEmpty()) }
     var maxText by rememberSaveable { mutableStateOf(settings.measuredMaxHeartRate?.toString().orEmpty()) }
     OutlinedTextField(
@@ -95,8 +97,8 @@ private fun ZonesSection(settings: DeviceSettings, onAge: (Int?) -> Unit, onMaxH
             ageText = text.filter(Char::isDigit).take(3)
             onAge(ageText.toIntOrNull())
         },
-        label = { Text("Edad") },
-        suffix = { Text("años") },
+        label = { Text(stringResource(R.string.settings_age)) },
+        suffix = { Text(stringResource(R.string.unit_years)) },
         singleLine = true,
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
         modifier = Modifier.width(160.dp),
@@ -107,9 +109,9 @@ private fun ZonesSection(settings: DeviceSettings, onAge: (Int?) -> Unit, onMaxH
             maxText = text.filter(Char::isDigit).take(3)
             onMaxHeartRate(maxText.toIntOrNull())
         },
-        label = { Text("FC máxima medida") },
-        suffix = { Text("ppm") },
-        supportingText = { Text("Opcional. Vacío: se usa 220 − edad") },
+        label = { Text(stringResource(R.string.settings_max_hr)) },
+        suffix = { Text(stringResource(R.string.unit_bpm)) },
+        supportingText = { Text(stringResource(R.string.settings_max_hr_help)) },
         singleLine = true,
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
         modifier = Modifier.width(260.dp),
@@ -117,25 +119,29 @@ private fun ZonesSection(settings: DeviceSettings, onAge: (Int?) -> Unit, onMaxH
     val max = settings.maxHeartRate
     if (max == null) {
         Text(
-            "Sin estos datos no se calculan las zonas.",
+            stringResource(R.string.settings_zones_missing),
             style = MaterialTheme.typography.bodyMedium,
         )
     } else {
         val zones = HeartRateZones(max)
         val dark = isSystemInDarkTheme()
-        val origin = if (settings.measuredMaxHeartRate != null) "medida" else "estimada: 220 − edad"
-        Text("FC máxima: $max ppm ($origin)", style = MaterialTheme.typography.bodyLarge)
+        val origin = if (settings.measuredMaxHeartRate != null) {
+            stringResource(R.string.settings_max_hr_measured)
+        } else {
+            stringResource(R.string.settings_max_hr_estimated)
+        }
+        Text(stringResource(R.string.settings_max_hr_value, max, origin), style = MaterialTheme.typography.bodyLarge)
         HeartRateZone.entries.forEach { zone ->
             Row(Modifier.fillMaxWidth().heightIn(min = 28.dp), verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    "Z${zone.number} ${zone.label}",
+                    stringResource(R.string.zone_name, zone.number, stringResource(zoneLabelRes(zone))),
                     style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.SemiBold,
                     color = zoneColor(zone, dark),
                     modifier = Modifier.weight(1f),
                 )
                 Text(
-                    "${zones.lowerBound(zone)}–${zones.upperBound(zone)} ppm",
+                    stringResource(R.string.settings_zone_range, zones.lowerBound(zone), zones.upperBound(zone)),
                     style = MaterialTheme.typography.bodyMedium,
                 )
             }
@@ -145,7 +151,7 @@ private fun ZonesSection(settings: DeviceSettings, onAge: (Int?) -> Unit, onMaxH
 
 @Composable
 private fun CaloriesSection(settings: DeviceSettings, onWeight: (Int?) -> Unit, onMale: (Boolean?) -> Unit) {
-    Text("Calorías por pulso", style = MaterialTheme.typography.titleMedium)
+    Text(stringResource(R.string.settings_calories), style = MaterialTheme.typography.titleMedium)
     var weightText by rememberSaveable { mutableStateOf(settings.weightKg?.toString().orEmpty()) }
     OutlinedTextField(
         value = weightText,
@@ -153,24 +159,22 @@ private fun CaloriesSection(settings: DeviceSettings, onWeight: (Int?) -> Unit, 
             weightText = text.filter(Char::isDigit).take(3)
             onWeight(weightText.toIntOrNull())
         },
-        label = { Text("Peso") },
+        label = { Text(stringResource(R.string.settings_weight)) },
         suffix = { Text("kg") },
         singleLine = true,
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
         modifier = Modifier.width(160.dp),
     )
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-        Text("Sexo (para la fórmula):", style = MaterialTheme.typography.bodyMedium)
-        FilterChip(selected = settings.male == true, onClick = { onMale(true) }, label = { Text("Hombre") })
-        FilterChip(selected = settings.male == false, onClick = { onMale(false) }, label = { Text("Mujer") })
+        Text(stringResource(R.string.settings_sex), style = MaterialTheme.typography.bodyMedium)
+        FilterChip(selected = settings.male == true, onClick = { onMale(true) }, label = { Text(stringResource(R.string.settings_male)) })
+        FilterChip(selected = settings.male == false, onClick = { onMale(false) }, label = { Text(stringResource(R.string.settings_female)) })
     }
     Text(
         if (settings.calorieEstimator != null) {
-            "Al finalizar cada sesión con pulso se calculan las calorías con la edad, el peso y el sexo " +
-                "(fórmula de Keytel). Es una aproximación; puedes corregirla a mano en cada sesión."
+            stringResource(R.string.settings_calories_on)
         } else {
-            "Indica edad, peso y sexo para calcular las calorías a partir del pulso. Sin ellos se usa la " +
-                "cifra de la máquina."
+            stringResource(R.string.settings_calories_off)
         },
         style = MaterialTheme.typography.bodySmall,
     )
@@ -184,21 +188,20 @@ private fun OptionsSection(
     onCreateDemoSession: () -> Unit,
 ) {
     SwitchRow(
-        title = "Modo depuración",
-        description = "Muestra el volcado GATT completo, el registro de conexiones y sus exportaciones.",
+        title = stringResource(R.string.settings_debug),
+        description = stringResource(R.string.settings_debug_help),
         checked = settings.debug,
         onChange = onDebug,
     )
     if (settings.debug) {
         SwitchRow(
-            title = "Modo demostración",
-            description = "«Iniciar sesión» graba datos simulados de elíptica y pulso, sin conectar con ningún " +
-                "dispositivo. Las sesiones quedan marcadas como «Demostración».",
+            title = stringResource(R.string.settings_demo),
+            description = stringResource(R.string.settings_demo_help),
             checked = settings.demo,
             onChange = onDemo,
         )
         OutlinedButton(onClick = onCreateDemoSession, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
-            Text("Crear sesión de ejemplo (25 min)")
+            Text(stringResource(R.string.settings_demo_create))
         }
     }
 }
@@ -224,23 +227,18 @@ private fun SwitchRow(title: String, description: String, checked: Boolean, onCh
 
 @Composable
 private fun PrivacySection(versionName: String) {
-    Text("Política de privacidad", style = MaterialTheme.typography.titleMedium)
+    Text(stringResource(R.string.privacy_title), style = MaterialTheme.typography.titleMedium)
     Text(
-        "fs2ftms funciona íntegramente en este dispositivo. No tiene acceso a Internet, " +
-            "no crea cuentas y no envía datos a ningún servidor.",
+        stringResource(R.string.privacy_local),
         style = MaterialTheme.typography.bodyMedium,
     )
     Text(
-        "Usa Bluetooth para buscar dispositivos cercanos y leer los datos de la elíptica y el pulso " +
-            "que emite el reloj. No usa esos datos para obtener tu ubicación.",
+        stringResource(R.string.privacy_bluetooth),
         style = MaterialTheme.typography.bodyMedium,
     )
     Text(
-        "Las sesiones (tiempo, distancia, cadencia, potencia, resistencia, calorías y frecuencia cardíaca) " +
-            "y los datos que indiques para las zonas de pulso se guardan solo en este dispositivo. Salen de él " +
-            "únicamente cuando exportas un fichero y eliges con qué aplicación compartirlo. Puedes borrar cada " +
-            "sesión desde el historial.",
+        stringResource(R.string.privacy_storage),
         style = MaterialTheme.typography.bodyMedium,
     )
-    Text("Versión $versionName", style = MaterialTheme.typography.bodySmall)
+    Text(stringResource(R.string.settings_version, versionName), style = MaterialTheme.typography.bodySmall)
 }

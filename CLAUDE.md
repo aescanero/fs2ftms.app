@@ -8,7 +8,9 @@ Sustituye a la app FitShow. Objetivo: histórico propio, dashboard, exportación
 - Sin ordenador ni Android Studio: solo Claude Code (nube) y el móvil (Samsung A33).
 - GitHub Actions compila la APK firmada y la publica como Release. No hay adb:
   la depuración se hace con la pantalla de diagnóstico y exportación de logs.
-- Idioma: código e identificadores en inglés; textos de UI, commits y docs en español.
+- Idioma: código e identificadores en inglés; textos de interfaz en recursos, inglés por defecto
+  (`values/`) y español (`values-es/`); mensajes técnicos de diagnóstico solo en inglés; commits,
+  comentarios y docs en español. `DemoWorkout.NAME` se guarda en la base de datos: no traducirlo.
 
 ## Entregas
 1. Grabación de la sesión (máquina + pulso), histórico con detalle y exportación JSON. [hecho, sin validar en dispositivo]
