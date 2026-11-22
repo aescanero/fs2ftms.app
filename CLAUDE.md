@@ -44,7 +44,7 @@ entrenamiento iniciado, así que Zepp también grabará su sesión.
 
 ## Estado real
 - Nombre (22-11-2026): FTMS Lab, paquete `io.github.aescanero.ftmslab` (antes fs2ftms; nueva app, no
-  actualiza a la anterior). El alias de la clave de firma sigue siendo `fs2ftms`. Icono: rayo ámbar sobre añil.
+  actualiza a la anterior). El alias de la clave de firma sigue siendo `fs2ftms`. Icono: rayo gris claro sobre gris oscuro.
 - Sincronización prevista: Google Drive, carpeta visible, un JSON por sesión y perfiles en otro fichero;
   Room local como índice para búsquedas. Pendiente del cliente OAuth Android que debe crear el usuario.
 - Perfiles (21-11-2026): cada máquina se da de alta capturando su FTMS (Dispositivos → pulsar mientras se
