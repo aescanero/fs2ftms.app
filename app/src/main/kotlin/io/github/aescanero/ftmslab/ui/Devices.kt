@@ -171,7 +171,7 @@ internal fun DevicesTab(
                 )
             }
         }
-        items(profiles, key = { it.address }) { profile ->
+        items(profiles, key = { "profile-${it.address}" }) { profile ->
             val inUse = selected?.address == profile.address
             Column(Modifier.widthIn(max = 720.dp).padding(bottom = 8.dp)) {
                 ProfileCard(profile, highlighted = inUse)
@@ -214,7 +214,7 @@ internal fun DevicesTab(
                 scan.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
             }
         }
-        items(scan.entries, key = { it.address }) { entry ->
+        items(scan.entries, key = { "scan-${it.address}" }) { entry ->
             ScanRow(entry, onInspect)
             HorizontalDivider()
         }

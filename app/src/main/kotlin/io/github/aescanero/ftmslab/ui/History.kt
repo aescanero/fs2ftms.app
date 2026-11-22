@@ -142,7 +142,7 @@ internal fun HistoryList(
                     modifier = Modifier.padding(top = 8.dp, bottom = 4.dp),
                 )
             }
-            items(summary.monthly, key = { it.first.toString() }) { (month, stats) ->
+            items(summary.monthly, key = { "month-${it.first}" }) { (month, stats) ->
                 MonthRow(month, stats)
             }
             item {
@@ -153,7 +153,7 @@ internal fun HistoryList(
                 )
             }
         }
-        items(sessions, key = { it.id }) { session ->
+        items(sessions, key = { "session-${it.id}" }) { session ->
             Column(Modifier.widthIn(max = 720.dp).fillMaxWidth()) {
                 SessionRow(session, format.format(Date(session.startedAtMs)), onOpen)
                 HorizontalDivider()

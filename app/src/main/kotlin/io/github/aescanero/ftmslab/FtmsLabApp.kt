@@ -170,6 +170,25 @@ class FtmsLabApp : Application() {
 
     override fun onCreate() {
         super.onCreate()
+        // Sin adb, el último cierre inesperado se guarda en un fichero y se pasa al registro de eventos
+        // al arrancar, para poder exportarlo desde la capa de depuración.
+        val crashFile = java.io.File(filesDir, CRASH_FILE)
+        val previous = Thread.getDefaultUncaughtExceptionHandler()
+        Thread.setDefaultUncaughtExceptionHandler { thread, error ->
+            runCatching {
+                crashFile.writeText("${System.currentTimeMillis()} ${thread.name}\n${error.stackTraceToString()}")
+            }
+            previous?.uncaughtException(thread, error)
+        }
         container = AppContainer(this)
+        if (crashFile.exists()) {
+            runCatching { container.eventLog.add("Crash", crashFile.readText().take(MAX_CRASH_CHARS)) }
+            crashFile.delete()
+        }
+    }
+
+    private companion object {
+        const val CRASH_FILE = "last-crash.txt"
+        const val MAX_CRASH_CHARS = 8000
     }
 }
