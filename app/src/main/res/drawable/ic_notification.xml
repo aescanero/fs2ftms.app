@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Icono de la notificación de grabación: el mismo rayo, en blanco y ajustado al recuadro. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="68"
+    android:viewportHeight="68">
+    <group android:translateX="-20" android:translateY="-20">
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M59,22L33,60L51,60L47,86L75,46L57,46Z" />
+    </group>
+</vector>

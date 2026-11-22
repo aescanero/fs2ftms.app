@@ -1,4 +1,4 @@
-# fs2ftms — registrador de entrenamientos de elíptica (Android)
+# FTMS Lab (ftmslab) — registrador de entrenamientos FTMS (Android)
 
 App Android que lee por FTMS los datos de la elíptica Merach MRK-E27 (Cross Trainer Data 0x2ACE),
 recibe el pulso que emite el reloj Amazfit Active 3 (Heart Rate Service 0x180D) y graba la sesión.
@@ -43,6 +43,10 @@ entrenamiento iniciado, así que Zepp también grabará su sesión.
 - Evitar la palabra "focus" en textos.
 
 ## Estado real
+- Nombre (22-11-2026): FTMS Lab, paquete `io.github.aescanero.ftmslab` (antes fs2ftms; nueva app, no
+  actualiza a la anterior). El alias de la clave de firma sigue siendo `fs2ftms`. Icono: rayo ámbar sobre añil.
+- Sincronización prevista: Google Drive, carpeta visible, un JSON por sesión y perfiles en otro fichero;
+  Room local como índice para búsquedas. Pendiente del cliente OAuth Android que debe crear el usuario.
 - Perfiles (21-11-2026): cada máquina se da de alta capturando su FTMS (Dispositivos → pulsar mientras se
   usa). `ProfileBuilder` (:core:protocol) decide tipo y estado (SUPPORTED, NO_FTMS, UNKNOWN_TYPE,
   TYPE_NOT_SUPPORTED, NO_DATA) y las métricas observadas en las tramas; la pantalla de entreno muestra solo
@@ -54,7 +58,7 @@ entrenamiento iniciado, así que Zepp también grabará su sesión.
 - La Merach emite 0x2ACE a ~1,25 Hz sin pedir control, en 2 paquetes por MTU 23; incluye resistencia y
   calorías. Detalle de tramas en `docs/hallazgos-previos.md`. El protocolo FitShow no se usa.
 - Health Connect es por dispositivo: la app debe ejecutarse en el móvil (A33) para convivir con Zepp.
-- Sin Hilt (contenedor manual en `Fs2FtmsApp`). Sin ktlint/detekt todavía. CI: tests y assembleRelease.
+- Sin Hilt (contenedor manual en `FtmsLabApp`). Sin ktlint/detekt todavía. CI: tests y assembleRelease.
 - Sin compilación local: Maven y Google están bloqueados en la sesión; cada cambio se valida en Actions
   (`gh run list`, `gh run view <id> --log-failed`). Los secrets no se pueden escribir desde la sesión.
 

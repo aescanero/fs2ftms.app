@@ -1,0 +1,56 @@
+package io.github.aescanero.ftmslab.protocol
+
+import kotlin.math.roundToInt
+import kotlin.math.sin
+
+/**
+ * Sesión simulada para revisar la interfaz sin la máquina: calentamiento y series alternas, con un
+ * pulso que responde con retardo a la intensidad. Determinista: una muestra por segundo.
+ */
+class DemoWorkout(private val maxHeartRate: Int = 180) {
+    data class Point(val sample: WorkoutSample, val heartRate: Int)
+
+    private var elapsed = 0
+    private var distance = 0.0
+    private var strides = 0.0
+    private var energy = 0.0
+    private var cadenceSum = 0L
+    private var heartRate = maxHeartRate * 0.45
+
+    fun next(): Point {
+        elapsed += 1
+        val minute = elapsed / 60
+        val (baseCadence, resistance) = when {
+            minute < 3 -> 38 to 2
+            (minute - 3) % 4 < 2 -> 58 to 9
+            else -> 44 to 4
+        }
+        val cadence = baseCadence + (sin(elapsed / 20.0) * 2).roundToInt()
+        val speed = cadence * 0.3
+        val power = (cadence * resistance * 0.25).toInt()
+        cadenceSum += cadence
+        distance += speed / 3.6
+        strides += cadence / 60.0
+        energy += power * 4 / 4184.0 + 0.02
+        val intensity = (cadence / 60.0) * (0.5 + resistance / 16.0)
+        // El pulso objetivo se expresa como fracción de la máxima: recorre de Z2 a Z5.
+        val target = maxHeartRate * (0.45 + intensity * 0.47)
+        heartRate += (target - heartRate) * 0.03
+        val sample = WorkoutSample(
+            elapsedSeconds = elapsed,
+            speedKmh = speed,
+            cadencePerMinute = cadence,
+            averageCadencePerMinute = (cadenceSum / elapsed).toInt(),
+            distanceMeters = distance.toInt(),
+            strideCount = strides,
+            powerWatts = power,
+            energyKcal = energy.toInt(),
+            resistanceLevel = resistance.toDouble(),
+        )
+        return Point(sample, heartRate.toInt())
+    }
+
+    companion object {
+        const val NAME = "Demostración"
+    }
+}

@@ -8,11 +8,11 @@ val keystoreFile: String? = System.getenv("KEYSTORE_FILE")
 val buildNumber: Int = System.getenv("VERSION_CODE")?.toIntOrNull() ?: 1
 
 android {
-    namespace = "io.github.aescanero.fs2ftms"
+    namespace = "io.github.aescanero.ftmslab"
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "io.github.aescanero.fs2ftms"
+        applicationId = "io.github.aescanero.ftmslab"
         minSdk = 33
         targetSdk = 35
         versionCode = buildNumber

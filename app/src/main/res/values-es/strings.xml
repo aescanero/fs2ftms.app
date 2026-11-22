@@ -54,7 +54,7 @@
     <string name="hc_auto">Guardar cada sesión al finalizarla</string>
     <string name="hc_auto_help">Zepp también guarda el entrenamiento del reloj, así que Health Connect mostrará dos sesiones por entrenamiento.</string>
     <string name="hc_grant">Permitir acceso</string>
-    <string name="hc_not_granted">Permite a fs2ftms guardar tus sesiones: ejercicio, distancia, calorías, pulso, potencia y velocidad.</string>
+    <string name="hc_not_granted">Permite a FTMS Lab guardar tus sesiones: ejercicio, distancia, calorías, pulso, potencia y velocidad.</string>
     <string name="hc_send_pending">Enviar sesiones pendientes (%1$d)</string>
     <string name="hc_sending">Enviando…</string>
     <string name="hc_title">Health Connect</string>
@@ -106,8 +106,8 @@
     <string name="permissions_grant">Conceder permisos</string>
     <string name="permissions_missing">Faltan los permisos de Bluetooth (dispositivos cercanos).</string>
     <string name="privacy_bluetooth">Usa Bluetooth para buscar dispositivos cercanos y leer los datos de la elíptica y el pulso que emite el reloj. No usa esos datos para obtener tu ubicación.</string>
-    <string name="privacy_health_connect">Si lo permites, las sesiones también se guardan en Health Connect en este dispositivo. fs2ftms solo escribe en él; no lee tus datos de salud.</string>
-    <string name="privacy_local">fs2ftms funciona íntegramente en este dispositivo. No tiene acceso a Internet, no crea cuentas y no envía datos a ningún servidor.</string>
+    <string name="privacy_health_connect">Si lo permites, las sesiones también se guardan en Health Connect en este dispositivo. FTMS Lab solo escribe en él; no lee tus datos de salud.</string>
+    <string name="privacy_local">FTMS Lab funciona íntegramente en este dispositivo. No tiene acceso a Internet, no crea cuentas y no envía datos a ningún servidor.</string>
     <string name="privacy_storage">Las sesiones (tiempo, distancia, cadencia, potencia, resistencia, calorías y frecuencia cardíaca) y los datos que indiques para las zonas de pulso y las calorías se guardan solo en este dispositivo. Salen de él únicamente cuando exportas un fichero y eliges con qué aplicación compartirlo. Puedes borrar cada sesión desde el historial.</string>
     <string name="privacy_title">Política de privacidad</string>
     <string name="profile_firmware">firmware %1$s</string>

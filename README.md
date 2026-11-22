@@ -1,4 +1,4 @@
-# fs2ftms
+# FTMS Lab
 
 App Android que graba los entrenamientos de una elíptica Merach (FTMS) junto con el pulso que
 emite un reloj Amazfit, con histórico propio y exportación JSON.

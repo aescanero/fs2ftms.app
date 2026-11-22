@@ -12,5 +12,5 @@ dependencyResolutionManagement {
         mavenCentral()
     }
 }
-rootProject.name = "fs2ftms"
+rootProject.name = "ftmslab"
 include(":app", ":core:protocol", ":ble:central", ":data")

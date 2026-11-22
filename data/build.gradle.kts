@@ -5,7 +5,7 @@ plugins {
 }
 
 android {
-    namespace = "io.github.aescanero.fs2ftms.data"
+    namespace = "io.github.aescanero.ftmslab.data"
     compileSdk = 36
 
     defaultConfig {
