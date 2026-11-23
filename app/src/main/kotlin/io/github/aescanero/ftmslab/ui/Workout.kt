@@ -105,7 +105,30 @@ internal fun WorkoutTab(
     val staleSeconds = pulseAge?.takeIf { it > STALE_PULSE_SECONDS }
 
     Column(Modifier.fillMaxSize().padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        StatusStrip(recorder, machine, heartRateSource, onRetry = onStart)
+        // Controles arriba y estado abajo: los botones quedan a mano sin tapar las métricas.
+        when {
+            !hasPermissions -> PermissionRequest(onRequestPermissions)
+            recorder.recording -> Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (recorder.paused) {
+                    Button(onClick = onResume, modifier = Modifier.weight(1f).heightIn(min = 56.dp)) {
+                        Text(stringResource(R.string.workout_resume), style = MaterialTheme.typography.titleMedium)
+                    }
+                } else {
+                    FilledTonalButton(onClick = onPause, modifier = Modifier.weight(1f).heightIn(min = 56.dp)) {
+                        Text(stringResource(R.string.workout_pause), style = MaterialTheme.typography.titleMedium)
+                    }
+                }
+                OutlinedButton(
+                    onClick = { confirmFinish = true },
+                    modifier = Modifier.weight(1f).heightIn(min = 56.dp),
+                ) { Text(stringResource(R.string.workout_finish), style = MaterialTheme.typography.titleMedium) }
+            }
+            machine == null -> Text(stringResource(R.string.workout_choose_machine))
+            else -> Button(
+                onClick = onStart,
+                modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp),
+            ) { Text(stringResource(R.string.workout_start), style = MaterialTheme.typography.titleMedium) }
+        }
 
         BoxWithConstraints(Modifier.weight(1f).fillMaxWidth()) {
             val wide = maxWidth >= 600.dp && maxWidth > maxHeight
@@ -136,29 +159,7 @@ internal fun WorkoutTab(
             }
         }
 
-        when {
-            !hasPermissions -> PermissionRequest(onRequestPermissions)
-            recorder.recording -> Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                if (recorder.paused) {
-                    Button(onClick = onResume, modifier = Modifier.weight(1f).heightIn(min = 56.dp)) {
-                        Text(stringResource(R.string.workout_resume), style = MaterialTheme.typography.titleMedium)
-                    }
-                } else {
-                    FilledTonalButton(onClick = onPause, modifier = Modifier.weight(1f).heightIn(min = 56.dp)) {
-                        Text(stringResource(R.string.workout_pause), style = MaterialTheme.typography.titleMedium)
-                    }
-                }
-                OutlinedButton(
-                    onClick = { confirmFinish = true },
-                    modifier = Modifier.weight(1f).heightIn(min = 56.dp),
-                ) { Text(stringResource(R.string.workout_finish), style = MaterialTheme.typography.titleMedium) }
-            }
-            machine == null -> Text(stringResource(R.string.workout_choose_machine))
-            else -> Button(
-                onClick = onStart,
-                modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp),
-            ) { Text(stringResource(R.string.workout_start), style = MaterialTheme.typography.titleMedium) }
-        }
+        StatusStrip(recorder, machine, heartRateSource, onRetry = onStart)
     }
 
     if (confirmFinish && recorder.recording) {

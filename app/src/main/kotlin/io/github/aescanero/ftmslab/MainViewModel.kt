@@ -121,7 +121,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 if (profile.has(Metric.SPEED)) add(StatParam.SPEED)
                 if (profile.has(Metric.POWER)) add(StatParam.POWER)
                 if (profile.has(Metric.RESISTANCE)) add(StatParam.RESISTANCE)
-                if (current.heartRateAddress != null || current.demoActive) add(StatParam.HEART_RATE)
+                if (current.heartRateAddress != null || current.demoActive || profile.has(Metric.HEART_RATE)) {
+                    add(StatParam.HEART_RATE)
+                }
             }
             val params = wanted.filter { it in week || it in month }
             if (params.isEmpty()) null else Comparison(params, values, live, week, month, profile.type)

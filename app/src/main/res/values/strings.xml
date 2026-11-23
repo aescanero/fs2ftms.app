@@ -15,11 +15,13 @@
     <string name="common_retry">Retry</string>
     <string name="common_save">Save</string>
     <string name="compare_cycle">Cycle</string>
-    <string name="compare_delta_month">%1$s %% vs last 30 days</string>
-    <string name="compare_delta_week">%1$s %% vs last 7 days</string>
-    <string name="compare_last_session">Last session</string>
+    <string name="compare_delta_month">Average %1$s %% vs last 30 days</string>
+    <string name="compare_delta_week">Average %1$s %% vs last 7 days</string>
+    <string name="compare_last_session">Last session avg</string>
     <string name="compare_month">Last 30 days</string>
-    <string name="compare_now">Now</string>
+    <string name="compare_now">Session avg</string>
+    <string name="compare_week_avg">7-day avg</string>
+    <string name="compare_month_avg">30-day avg</string>
     <string name="compare_week">Last 7 days</string>
     <string name="demo">Demo</string>
     <string name="devices_capture_hint">Keep using the machine until the capture ends: its profile is created from the data it sends.</string>

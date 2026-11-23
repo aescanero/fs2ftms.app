@@ -14,11 +14,13 @@
     <string name="common_retry">Reintentar</string>
     <string name="common_save">Guardar</string>
     <string name="compare_cycle">Ciclo</string>
-    <string name="compare_delta_month">%1$s %% frente a los últimos 30 días</string>
-    <string name="compare_delta_week">%1$s %% frente a los últimos 7 días</string>
-    <string name="compare_last_session">Última sesión</string>
+    <string name="compare_delta_month">Media %1$s %% frente a 30 días</string>
+    <string name="compare_delta_week">Media %1$s %% frente a 7 días</string>
+    <string name="compare_last_session">Media anterior</string>
     <string name="compare_month">Últimos 30 días</string>
-    <string name="compare_now">Ahora</string>
+    <string name="compare_now">Media sesión</string>
+    <string name="compare_week_avg">Media 7 días</string>
+    <string name="compare_month_avg">Media 30 días</string>
     <string name="compare_week">Últimos 7 días</string>
     <string name="demo">Demostración</string>
     <string name="devices_capture_hint">Sigue usando la máquina hasta que termine la captura: su perfil se crea con los datos que envía.</string>

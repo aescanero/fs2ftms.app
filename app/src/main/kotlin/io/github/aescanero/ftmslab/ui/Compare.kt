@@ -64,7 +64,7 @@ private fun paramValue(param: StatParam, value: Double?, type: MachineType?): St
 }
 
 /**
- * Comparativa de un parámetro: valor actual frente a la media de los últimos 7 y 30 días, en barras
+ * Comparativa de un parámetro, solo con medias: la de la sesión (en curso o última) frente a la media de los últimos 7 y 30 días, en barras
  * que parten de cero. Rota sola por los parámetros si el ciclo está activo; un toque pasa al siguiente.
  */
 @Composable
@@ -90,8 +90,8 @@ internal fun ComparisonCard(
     val nowLabel = stringResource(if (comparison.live) R.string.compare_now else R.string.compare_last_session)
     val rows = listOf(
         nowLabel to current,
-        stringResource(R.string.compare_week) to comparison.week[param],
-        stringResource(R.string.compare_month) to comparison.month[param],
+        stringResource(R.string.compare_week_avg) to comparison.week[param],
+        stringResource(R.string.compare_month_avg) to comparison.month[param],
     )
     val max = rows.mapNotNull { it.second }.maxOrNull()?.takeIf { it > 0 } ?: 1.0
     val accent = MaterialTheme.colorScheme.primary
@@ -123,7 +123,7 @@ internal fun ComparisonCard(
                     Modifier.fillMaxWidth().semantics { contentDescription = "$label: $text" },
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Text(label, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.width(112.dp), maxLines = 1)
+                    Text(label, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.width(128.dp), maxLines = 1)
                     Box(
                         Modifier
                             .weight(1f)
