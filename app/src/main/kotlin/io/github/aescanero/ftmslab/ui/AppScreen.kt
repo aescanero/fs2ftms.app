@@ -104,6 +104,7 @@ fun AppScreen(
     val healthConnectStatus by vm.healthConnectStatus.collectAsStateWithLifecycle()
     val healthConnectPending by vm.healthConnectPending.collectAsStateWithLifecycle()
     val healthConnectBusy by vm.healthConnectBusy.collectAsStateWithLifecycle()
+    val syncState by vm.syncState.collectAsStateWithLifecycle()
     var tab by rememberSaveable { mutableIntStateOf(0) }
 
     // Mientras se graba solo está disponible la pantalla de entreno: evita salir de ella por un toque.
@@ -186,6 +187,10 @@ fun AppScreen(
                 onHealthConnectToggle = { vm.setHealthConnect(it) },
                 onHealthConnectSend = { vm.sendPendingToHealthConnect() },
                 onHealthConnectRefresh = { vm.refreshHealthConnect() },
+                sync = syncState,
+                onSyncFile = { vm.setSyncFile(it) },
+                onSyncNow = { vm.syncNow() },
+                onSyncStop = { vm.stopSync() },
             )
         }
     }

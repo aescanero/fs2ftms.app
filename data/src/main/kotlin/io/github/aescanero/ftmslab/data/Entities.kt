@@ -1,5 +1,6 @@
 package io.github.aescanero.ftmslab.data
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
@@ -32,6 +33,9 @@ data class SessionEntity(
     val finished: Boolean = false,
     /** Momento en que se escribió en Health Connect; null si aún no se ha enviado. */
     val healthConnectAtMs: Long? = null,
+    /** Última modificación (fin de la sesión o corrección manual); decide qué versión gana al sincronizar. */
+    @ColumnInfo(defaultValue = "0")
+    val updatedAtMs: Long = 0,
 ) {
     /** Calorías a mostrar: corrección manual, si no la estimación por pulso, si no la máquina. */
     val kcal: Int get() = manualKcal ?: estimatedKcal ?: machineKcal
@@ -70,3 +74,16 @@ data class SampleEntity(
     val resistance: Double?,
     val heartRate: Int?,
 )
+
+/** Tipos de baja registrada para la sincronización. */
+object Tombstones {
+    const val SESSION = "session"
+    const val PROFILE = "profile"
+}
+
+/**
+ * Baja de una sesión (clave: startedAtMs) o de una máquina (clave: dirección), para que la
+ * sincronización la propague en lugar de volver a traer el elemento desde otro dispositivo.
+ */
+@Entity(tableName = "tombstones", primaryKeys = ["kind", "key"])
+data class TombstoneEntity(val kind: String, val key: String, val atMs: Long)

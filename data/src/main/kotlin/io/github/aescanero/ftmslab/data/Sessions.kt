@@ -11,11 +11,12 @@ object Sessions {
         endedAtMs: Long,
         estimatedKcal: Int? = null,
     ): SessionEntity {
-        val last = samples.lastOrNull() ?: return session.copy(endedAtMs = endedAtMs, finished = true)
+        val last = samples.lastOrNull() ?: return session.copy(endedAtMs = endedAtMs, finished = true, updatedAtMs = endedAtMs)
         val moving = samples.filter { it.cadence > 0 }
         val heartRates = samples.mapNotNull { it.heartRate }
         val resistances = samples.mapNotNull { it.resistance }
         return session.copy(
+            updatedAtMs = endedAtMs,
             endedAtMs = endedAtMs,
             durationSeconds = last.elapsedSeconds,
             distanceMeters = last.distanceMeters,

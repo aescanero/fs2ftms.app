@@ -15,7 +15,9 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.material3.Button
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
@@ -40,6 +42,9 @@ import androidx.compose.ui.unit.dp
 import androidx.health.connect.client.PermissionController
 import io.github.aescanero.ftmslab.DeviceSettings
 import io.github.aescanero.ftmslab.HealthConnectStatus
+import io.github.aescanero.ftmslab.SyncState
+import java.text.DateFormat
+import java.util.Date
 import io.github.aescanero.ftmslab.R
 import io.github.aescanero.ftmslab.protocol.HeartRateZone
 import io.github.aescanero.ftmslab.protocol.HeartRateZones
@@ -59,6 +64,10 @@ internal fun SettingsTab(
     onHealthConnectToggle: (Boolean) -> Unit,
     onHealthConnectSend: () -> Unit,
     onHealthConnectRefresh: () -> Unit,
+    sync: SyncState,
+    onSyncFile: (Uri) -> Unit,
+    onSyncNow: () -> Unit,
+    onSyncStop: () -> Unit,
 ) {
     BoxWithConstraints(Modifier.fillMaxSize()) {
         // En pantallas anchas el contenido se reparte en dos columnas de lectura cómoda.
@@ -75,6 +84,8 @@ internal fun SettingsTab(
                 Column(Modifier.widthIn(max = 560.dp).weight(1f, fill = false), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     HealthConnectSection(healthConnect, onHealthConnectToggle, onHealthConnectSend, onHealthConnectRefresh)
                     HorizontalDivider()
+                    SyncSection(sync, onSyncFile, onSyncNow, onSyncStop)
+                    HorizontalDivider()
                     OptionsSection(settings, onDebug, onDemo, onCreateDemoSession)
                     HorizontalDivider()
                     PrivacySection(versionName)
@@ -90,6 +101,8 @@ internal fun SettingsTab(
                 CaloriesSection(settings, onWeight, onMale)
                 HorizontalDivider()
                 HealthConnectSection(healthConnect, onHealthConnectToggle, onHealthConnectSend, onHealthConnectRefresh)
+                HorizontalDivider()
+                SyncSection(sync, onSyncFile, onSyncNow, onSyncStop)
                 HorizontalDivider()
                 OptionsSection(settings, onDebug, onDemo, onCreateDemoSession)
                 HorizontalDivider()
@@ -244,6 +257,52 @@ private fun HealthConnectSection(
 }
 
 @Composable
+private fun SyncSection(state: SyncState, onFile: (Uri) -> Unit, onSyncNow: () -> Unit, onStop: () -> Unit) {
+    val create = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/octet-stream")) { uri ->
+        uri?.let(onFile)
+    }
+    val open = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri -> uri?.let(onFile) }
+    Text(stringResource(R.string.sync_title), style = MaterialTheme.typography.titleMedium)
+    val fileName = state.fileName
+    if (fileName == null) {
+        Text(stringResource(R.string.sync_help), style = MaterialTheme.typography.bodyMedium)
+        Button(onClick = { create.launch(SYNC_FILE_NAME) }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
+            Text(stringResource(R.string.sync_create))
+        }
+        OutlinedButton(onClick = { open.launch(arrayOf("*/*")) }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
+            Text(stringResource(R.string.sync_open))
+        }
+        return
+    }
+    Text(stringResource(R.string.sync_file, fileName), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
+    val last = state.lastSyncAtMs
+    Text(
+        when {
+            state.running -> stringResource(R.string.sync_running)
+            last == null -> stringResource(R.string.sync_never)
+            else -> stringResource(
+                R.string.sync_last,
+                DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT).format(Date(last)),
+            ) + " · " + stringResource(R.string.sync_result, state.received, state.sent)
+        },
+        style = MaterialTheme.typography.bodySmall,
+    )
+    state.error?.let {
+        Text(stringResource(R.string.sync_error, it), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+    }
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Button(onClick = onSyncNow, enabled = !state.running, modifier = Modifier.heightIn(min = 48.dp)) {
+            Text(stringResource(R.string.sync_now))
+        }
+        OutlinedButton(onClick = onStop, enabled = !state.running, modifier = Modifier.heightIn(min = 48.dp)) {
+            Text(stringResource(R.string.sync_stop))
+        }
+    }
+}
+
+private const val SYNC_FILE_NAME = "ftmslab.db"
+
+@Composable
 private fun OptionsSection(
     settings: DeviceSettings,
     onDebug: (Boolean) -> Unit,
@@ -304,5 +363,6 @@ internal fun PrivacySection(versionName: String) {
         style = MaterialTheme.typography.bodyMedium,
     )
     Text(stringResource(R.string.privacy_health_connect), style = MaterialTheme.typography.bodyMedium)
+    Text(stringResource(R.string.privacy_sync), style = MaterialTheme.typography.bodyMedium)
     Text(stringResource(R.string.settings_version, versionName), style = MaterialTheme.typography.bodySmall)
 }

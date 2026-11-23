@@ -302,6 +302,7 @@ class RecorderService : Service() {
                             if (container.settings.value.healthConnect && container.healthConnect.write(summary, samples)) {
                                 dao.setHealthConnectAt(id, System.currentTimeMillis())
                             }
+                            container.sync.request()
                         }
                     }
                 }

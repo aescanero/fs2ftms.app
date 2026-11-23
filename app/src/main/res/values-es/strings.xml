@@ -109,6 +109,7 @@
     <string name="privacy_health_connect">Si lo permites, las sesiones también se guardan en Health Connect en este dispositivo. FTMS Lab solo escribe en él; no lee tus datos de salud.</string>
     <string name="privacy_local">FTMS Lab funciona íntegramente en este dispositivo. No tiene acceso a Internet, no crea cuentas y no envía datos a ningún servidor.</string>
     <string name="privacy_storage">Las sesiones (tiempo, distancia, cadencia, potencia, resistencia, calorías y frecuencia cardíaca) y los datos que indiques para las zonas de pulso y las calorías se guardan solo en este dispositivo. Salen de él únicamente cuando exportas un fichero y eliges con qué aplicación compartirlo. Puedes borrar cada sesión desde el historial.</string>
+    <string name="privacy_sync">Si activas la sincronización, las sesiones y las máquinas se copian en el fichero que elijas. Si ese fichero está en Google Drive u otro servicio en la nube, es la app de ese servicio la que lo sube; FTMS Lab no se conecta a Internet.</string>
     <string name="privacy_title">Política de privacidad</string>
     <string name="profile_firmware">firmware %1$s</string>
     <string name="profile_metrics">Datos: %1$s</string>
@@ -149,6 +150,18 @@
     <string name="status_recording">Grabando</string>
     <string name="status_recording_demo">Grabando · demostración</string>
     <string name="status_waiting">Esperando datos: empieza a moverte</string>
+    <string name="sync_create">Crear fichero</string>
+    <string name="sync_error">No se pudo sincronizar: %1$s</string>
+    <string name="sync_file">Fichero: %1$s</string>
+    <string name="sync_help">Guarda una copia de tus sesiones y máquinas en un fichero de base de datos, por ejemplo en una carpeta de Google Drive, y elige el mismo fichero en tus otros dispositivos. Cada dispositivo mantiene sus datos y sincroniza al abrirse y después de cada sesión.</string>
+    <string name="sync_last">Última sincronización: %1$s</string>
+    <string name="sync_never">Aún no se ha sincronizado.</string>
+    <string name="sync_now">Sincronizar ahora</string>
+    <string name="sync_open">Abrir fichero existente</string>
+    <string name="sync_result">%1$d recibidas, %2$d enviadas</string>
+    <string name="sync_running">Sincronizando…</string>
+    <string name="sync_stop">Dejar de sincronizar</string>
+    <string name="sync_title">Sincronización entre dispositivos</string>
     <string name="tab_devices">Equipos</string>
     <string name="tab_history">Historial</string>
     <string name="tab_settings">Ajustes</string>

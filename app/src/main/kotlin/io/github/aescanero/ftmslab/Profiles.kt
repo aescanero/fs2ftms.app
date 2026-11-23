@@ -2,6 +2,7 @@ package io.github.aescanero.ftmslab
 
 import android.content.SharedPreferences
 import io.github.aescanero.ftmslab.ble.central.GattDump
+import io.github.aescanero.ftmslab.data.ProfileRow
 import io.github.aescanero.ftmslab.protocol.CaptureInput
 import io.github.aescanero.ftmslab.protocol.DemoWorkout
 import io.github.aescanero.ftmslab.protocol.FtmsUuids
@@ -42,6 +43,14 @@ class ProfileStore(private val prefs: SharedPreferences) {
 
     fun delete(address: String) {
         _profiles.update { list -> list.filterNot { it.address == address } }
+        persist()
+    }
+
+    /** Perfiles en el formato del fichero de sincronización; la fecha de captura marca la versión. */
+    fun rows(): List<ProfileRow> = _profiles.value.map { ProfileRow(it.address, toJson(it).toString(), it.createdAtMs) }
+
+    fun replaceAll(rows: List<ProfileRow>) {
+        _profiles.value = rows.mapNotNull { runCatching { fromJson(JSONObject(it.json)) }.getOrNull() }
         persist()
     }
 

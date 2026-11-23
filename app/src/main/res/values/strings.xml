@@ -110,6 +110,7 @@
     <string name="privacy_health_connect">If you allow it, sessions are also saved to Health Connect on this device. FTMS Lab only writes there; it does not read your health data.</string>
     <string name="privacy_local">FTMS Lab runs entirely on this device. It has no Internet access, creates no accounts and sends no data to any server.</string>
     <string name="privacy_storage">Sessions (time, distance, cadence, power, resistance, calories and heart rate) and the data you enter for heart rate zones and calories are stored only on this device. They leave it only when you export a file and choose which app to share it with. You can delete each session from the history.</string>
+    <string name="privacy_sync">If you turn on sync, sessions and machines are copied to the file you choose. If that file is in Google Drive or another cloud service, that service\'s app uploads it; FTMS Lab does not connect to the Internet.</string>
     <string name="privacy_title">Privacy policy</string>
     <string name="profile_firmware">firmware %1$s</string>
     <string name="profile_metrics">Data: %1$s</string>
@@ -150,6 +151,18 @@
     <string name="status_recording">Recording</string>
     <string name="status_recording_demo">Recording · demo</string>
     <string name="status_waiting">Waiting for data: start moving</string>
+    <string name="sync_create">Create file</string>
+    <string name="sync_error">Could not sync: %1$s</string>
+    <string name="sync_file">File: %1$s</string>
+    <string name="sync_help">Keep a copy of your sessions and machines in a database file, for example in a Google Drive folder, and choose the same file on your other devices. Each device keeps its own data and syncs when it starts and after each session.</string>
+    <string name="sync_last">Last sync: %1$s</string>
+    <string name="sync_never">Not synced yet.</string>
+    <string name="sync_now">Sync now</string>
+    <string name="sync_open">Open existing file</string>
+    <string name="sync_result">%1$d received, %2$d sent</string>
+    <string name="sync_running">Syncing…</string>
+    <string name="sync_stop">Stop syncing</string>
+    <string name="sync_title">Sync between devices</string>
     <string name="tab_devices">Devices</string>
     <string name="tab_history">History</string>
     <string name="tab_settings">Settings</string>

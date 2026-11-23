@@ -45,8 +45,13 @@ entrenamiento iniciado, así que Zepp también grabará su sesión.
 ## Estado real
 - Nombre (22-11-2026): FTMS Lab, paquete `io.github.aescanero.ftmslab` (antes fs2ftms; nueva app, no
   actualiza a la anterior). El alias de la clave de firma sigue siendo `fs2ftms`. Icono: rayo gris claro sobre gris oscuro.
-- Sincronización prevista: Google Drive, carpeta visible, un JSON por sesión y perfiles en otro fichero;
-  Room local como índice para búsquedas. Pendiente del cliente OAuth Android que debe crear el usuario.
+- Sincronización (23-11-2026): un fichero SQLite elegido con el selector de Android (SAF, como Keepass2Android);
+  en Drive lo sube la app de Drive, sin OAuth ni Google Cloud. Room sigue siendo la base local de trabajo;
+  `SyncEngine` (:data) fusiona por startedAtMs con `updatedAtMs` y bajas (`tombstones`); `SyncPlanner` es la
+  lógica pura con tests. Se sincroniza al arrancar, al finalizar sesión, al borrar y al corregir calorías.
+  Las sesiones recibidas se escriben también en el Health Connect del dispositivo. Esquema del fichero
+  documentado en `SyncEngine` (consultable con SQL). Drive no permite elegir carpeta para crear ficheros
+  dentro (OPEN_DOCUMENT_TREE), por eso es un único fichero.
 - Perfiles (21-11-2026): cada máquina se da de alta capturando su FTMS (Dispositivos → pulsar mientras se
   usa). `ProfileBuilder` (:core:protocol) decide tipo y estado (SUPPORTED, NO_FTMS, UNKNOWN_TYPE,
   TYPE_NOT_SUPPORTED, NO_DATA) y las métricas observadas en las tramas; la pantalla de entreno muestra solo

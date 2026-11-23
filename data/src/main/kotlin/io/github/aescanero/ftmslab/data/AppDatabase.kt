@@ -4,6 +4,8 @@ import android.content.Context
 import androidx.room.Dao
 import androidx.room.Database
 import androidx.room.Insert
+import androidx.room.OnConflictStrategy
+import androidx.room.Transaction
 import androidx.room.Query
 import androidx.room.Room
 import androidx.room.RoomDatabase
@@ -56,14 +58,32 @@ interface SessionDao {
     @Query("SELECT * FROM samples WHERE sessionId = :id ORDER BY timestampMs")
     suspend fun samples(id: Long): List<SampleEntity>
 
-    @Query("UPDATE sessions SET manualKcal = :kcal WHERE id = :id")
-    suspend fun setManualKcal(id: Long, kcal: Int?)
+    @Query("UPDATE sessions SET manualKcal = :kcal, updatedAtMs = :atMs WHERE id = :id")
+    suspend fun setManualKcal(id: Long, kcal: Int?, atMs: Long)
+
+    @Query("SELECT * FROM tombstones")
+    suspend fun tombstones(): List<TombstoneEntity>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertTombstone(tombstone: TombstoneEntity)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertTombstones(tombstones: List<TombstoneEntity>)
+
+    @Query("DELETE FROM tombstones")
+    suspend fun deleteTombstones()
+
+    @Transaction
+    suspend fun replaceTombstones(tombstones: List<TombstoneEntity>) {
+        deleteTombstones()
+        insertTombstones(tombstones)
+    }
 
     @Query("DELETE FROM sessions WHERE id = :id")
     suspend fun deleteSession(id: Long)
 }
 
-@Database(entities = [SessionEntity::class, SampleEntity::class], version = 4, exportSchema = false)
+@Database(entities = [SessionEntity::class, SampleEntity::class, TombstoneEntity::class], version = 5, exportSchema = false)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun sessionDao(): SessionDao
 
@@ -86,9 +106,20 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        private val MIGRATION_4_5 = object : Migration(4, 5) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE sessions ADD COLUMN updatedAtMs INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("UPDATE sessions SET updatedAtMs = endedAtMs")
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS tombstones (kind TEXT NOT NULL, key TEXT NOT NULL, " +
+                        "atMs INTEGER NOT NULL, PRIMARY KEY(kind, key))",
+                )
+            }
+        }
+
         fun create(context: Context): AppDatabase =
             Room.databaseBuilder(context.applicationContext, AppDatabase::class.java, "ftmslab.db")
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
                 .build()
     }
 }

@@ -11,6 +11,8 @@ import io.github.aescanero.ftmslab.ble.central.LogEntry
 import io.github.aescanero.ftmslab.ble.central.ScanState
 import io.github.aescanero.ftmslab.data.SampleEntity
 import io.github.aescanero.ftmslab.data.SessionEntity
+import io.github.aescanero.ftmslab.data.TombstoneEntity
+import io.github.aescanero.ftmslab.data.Tombstones
 import io.github.aescanero.ftmslab.data.PeriodStats
 import io.github.aescanero.ftmslab.data.Sessions
 import io.github.aescanero.ftmslab.data.StatParam
@@ -137,6 +139,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     val healthConnectPermissions: Set<String> get() = container.healthConnect.permissions
 
+    val syncState: StateFlow<SyncState> = container.sync.state
+
+    fun setSyncFile(uri: android.net.Uri) = container.sync.setFile(uri)
+
+    fun syncNow() = container.sync.request()
+
+    fun stopSync() = container.sync.clear()
+
     fun refreshHealthConnect() {
         viewModelScope.launch(Dispatchers.IO) {
             _healthConnectStatus.value = container.healthConnect.status()
@@ -190,7 +200,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val id = _detail.value?.session?.id ?: return
         viewModelScope.launch {
             withContext(Dispatchers.IO) {
-                container.dao.setManualKcal(id, kcal?.takeIf { it in 0..20000 })
+                container.dao.setManualKcal(id, kcal?.takeIf { it in 0..20000 }, System.currentTimeMillis())
                 // Si la sesión ya estaba en Health Connect, se reenvía con las calorías corregidas.
                 val session = container.dao.session(id)
                 if (session?.healthConnectAtMs != null && container.settings.value.healthConnect) {
@@ -200,6 +210,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 }
             }
             openSession(id)
+            container.sync.request()
         }
     }
 
@@ -279,6 +290,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun deleteProfile(profile: MachineProfile) {
         container.profiles.delete(profile.address)
+        viewModelScope.launch(Dispatchers.IO) {
+            container.dao.insertTombstone(TombstoneEntity(Tombstones.PROFILE, profile.address, System.currentTimeMillis()))
+            container.sync.request()
+        }
         if (container.settings.value.machineAddress == profile.address) clearMachine()
     }
 
@@ -302,8 +317,16 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun deleteSession(id: Long) {
         viewModelScope.launch {
-            withContext(Dispatchers.IO) { container.dao.deleteSession(id) }
+            withContext(Dispatchers.IO) {
+                container.dao.session(id)?.let { session ->
+                    container.dao.insertTombstone(
+                        TombstoneEntity(Tombstones.SESSION, session.startedAtMs.toString(), System.currentTimeMillis()),
+                    )
+                }
+                container.dao.deleteSession(id)
+            }
             _detail.value = null
+            container.sync.request()
         }
     }
 

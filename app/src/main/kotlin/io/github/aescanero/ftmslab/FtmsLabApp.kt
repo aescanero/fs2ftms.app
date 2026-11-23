@@ -99,7 +99,11 @@ class AppContainer(context: Context) {
         ),
     )
 
+    val sync = FileSync(context, this)
+
     init {
+        // Al arrancar se sincroniza con el fichero compartido, si está configurado.
+        sync.request()
         scope.launch {
             settings.collect {
                 prefs.edit()
